@@ -6,7 +6,7 @@ on:
       KERNEL_SOURCE:
         description: 'Kernel Source'
         required: true
-        default: 'lightsummer233/kernel_xiaomi_sm8250'
+        default: 'sakana164/kernel_xiaomi_sm8250_'
       KERNEL_SOURCE_BRANCH:
         description: 'Branch'
         required: true
