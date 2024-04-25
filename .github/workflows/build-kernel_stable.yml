@@ -85,7 +85,7 @@ jobs:
         # git apply AnyKernel3/patch/KernelSU.patch
         bash AnyKernel3/patch/patch.sh
         echo "CONFIG_KSU=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-        curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
+        curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s v0.9.5
         echo "ENABLE_KERNELSU=-KernelSU" >> $GITHUB_ENV
         if [ ${{ env.ENABLE_KERNELSU_DEBUG }} = true ]; then
           echo "CONFIG_KSU_DEBUG=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
@@ -95,8 +95,8 @@ jobs:
       run: |
         cd kernel-source
         export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
-        export KBUILD_BUILD_HOST=sakana
-        export KBUILD_BUILD_USER=sakana164
+        export KBUILD_BUILD_HOST=AL1S
+        export KBUILD_BUILD_USER=awainatsu
         make -j$(nproc --all) O=out ARCH=arm64 CC=clang ${{ env.KERNEL_DEFCONFIG }}
 
         scripts/config --file out/.config \
@@ -135,4 +135,3 @@ jobs:
           !kernel-source/AnyKernel3/modules
           !kernel-source/AnyKernel3/ramdisk
         compression-level: 9
-
