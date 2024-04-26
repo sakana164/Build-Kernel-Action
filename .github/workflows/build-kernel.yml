@@ -6,7 +6,7 @@ on:
       KERNEL_SOURCE:
         description: 'Kernel Source'
         required: true
-        default: 'sakana164/kernel_xiaomi_sm8250_'
+        default: 'sakana164/kernel_xiaomi_sm8250'
       KERNEL_SOURCE_BRANCH:
         description: 'Branch'
         required: true
@@ -75,7 +75,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         # token: ${{env.PERSONAL_TOKEN}}
-        repository: lightsummer233/AnyKernel3
+        repository: sakana164/AnyKernel3
         path: kernel-source/AnyKernel3
 
     - name: Setup KernelSU
