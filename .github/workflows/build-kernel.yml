@@ -95,8 +95,8 @@ jobs:
       run: |
         cd kernel-source
         export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
-        export KBUILD_BUILD_HOST=AL1S
-        export KBUILD_BUILD_USER=awainatsu
+        export KBUILD_BUILD_HOST=sakana
+        export KBUILD_BUILD_USER=sakana164
         make -j$(nproc --all) O=out ARCH=arm64 CC=clang ${{ env.KERNEL_DEFCONFIG }}
 
         scripts/config --file out/.config \
