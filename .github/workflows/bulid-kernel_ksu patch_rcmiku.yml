@@ -1,4 +1,4 @@
-name: Build Kernel_diff patch Rcmiku
+name: Build Kernel_diff patch rcmiku
 
 on:
   workflow_dispatch:
@@ -26,7 +26,7 @@ on:
       USE_CUSTOM_CLANG:
         description: 'Use Custom Clang'
         required: true
-        default: false
+        default: true
         type: boolean
       CUSTOM_CLANG_URL:
         description: 'Custom Clang URL'
@@ -102,19 +102,13 @@ jobs:
         submodules: recursive
         path: kernel-source
 
-    - name: Checkout AnyKernel3
-      uses: actions/checkout@v4
-      with:
-        # token: ${{env.PERSONAL_TOKEN}}
-        repository: sakana164/AnyKernel3
-        path: kernel-source/AnyKernel3
-
     - name: Update Defconfig
       run: |
         cd kernel-source
         export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
         chmod +x scripts/update_defconfig
-        ./scripts/update_defconfig alioth  
+        ./scripts/update_defconfig alioth
+        echo "[+] Update Defconfig"
 
     - name: Setup KernelSU
       if: env.ENABLE_KERNELSU == 'true'
@@ -132,6 +126,15 @@ jobs:
         if [ ${{ env.ADD_PATH_UMOUNT }} = true ]; then
           git am ../patch/KernelSU-path_umount.patch
         fi
+        echo "[+] KernelSU setup done."
+
+    - name: Make working directory clean to avoid dirty
+      run: |
+        cd kernel-source
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git submodule add https://github.com/sakana164/KernelSU.git KernelSU
+        git add -A && git commit -am "Make working directory clean succeed" || echo "Commit failed,No changes to commit"
 
     - name: Build Kernel
       run: |
@@ -157,10 +160,17 @@ jobs:
           CROSS_COMPILE=aarch64-linux-gnu- \
           CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
 
-    - name: Configuration AnyKernel3
+    - name: Checkout AnyKernel3
+      uses: actions/checkout@v4
+      with:
+        # token: ${{env.PERSONAL_TOKEN}}
+        repository: sakana164/AnyKernel3
+        path: kernel-source/AnyKernel3
+
+    - name: Prepare artifacts
       run: |
         cd kernel-source
-        KERNEL_NAME=$(grep "CONFIG_LOCALVERSION=" arch/arm64/configs/vendor/xiaomi/sm8250-common.config | cut -d'-' -f2 | tr -d '"')
+        KERNEL_NAME=$(grep "CONFIG_LOCALVERSION=" arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }} | cut -d'-' -f2 | tr -d '"')
         sed -i "s/アリエス/$KERNEL_NAME/g" ./AnyKernel3/anykernel.sh
         cp out/arch/arm64/boot/Image AnyKernel3
         cp out/arch/arm64/boot/dtbo.img AnyKernel3
@@ -169,11 +179,12 @@ jobs:
     - name: Upload Kernel
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ env.KERNEL_SOURCE_BRANCH }}-kernel-${{ env.DEVICE }}${{ env.ENABLED_KERNELSU }}-${{ env.BUILD_TIME }}
+        name: ${{ env.KERNEL_SOURCE_BRANCH }}-kernel-${{ env.DEVICE }}${{ env.ENABLE_KERNELSU }}-${{ env.BUILD_TIME }}
         path: |
           kernel-source/AnyKernel3/
           !kernel-source/AnyKernel3/*.git*
           !kernel-source/AnyKernel3/patch
           !kernel-source/AnyKernel3/modules
           !kernel-source/AnyKernel3/ramdisk
+          !kernel-source/AnyKernel3/README.md
         compression-level: 9
