@@ -101,8 +101,17 @@ jobs:
         ref: ${{ env.KERNEL_SOURCE_BRANCH }}
         submodules: recursive
         path: kernel-source
-
+     
+    - name: Check if Defconfig exists
+      run: |
+        if [ -f "kernel-source/arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}" ]; then
+          echo "Defconfig_exists=true" >> $GITHUB_ENV
+        else
+          echo "Defconfig_exists=false" >> $GITHUB_ENV
+        fi
+      
     - name: Update Defconfig
+      if: env.Defconfig_exists == 'false'
       run: |
         cd kernel-source
         export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
