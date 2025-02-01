@@ -206,5 +206,8 @@ jobs:
     - name: Upload Defconfig
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ env.KERNEL_SOURCE_BRANCH }}-${{ env.KERNEL_DEFCONFIG }}-${{ env.BUILD_TIME }}
-        path: kernel-source/${{ env.KERNEL_DEFCONFIG }}-${{ env.BUILD_TIME }}
+        name: ${{ env.KERNEL_SOURCE_BRANCH }}-${{ env.KERNEL_DEFCONFIG }}
+        path: |
+          kernel-source/${{ env.KERNEL_DEFCONFIG }}-${{ env.BUILD_TIME }}
+          kernel-source/arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        compression-level: 9
