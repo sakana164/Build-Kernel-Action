@@ -1,0 +1,248 @@
+name: Build Kernel_diff offical patch susfs
+
+on:
+  workflow_dispatch:
+    inputs:
+      KERNEL_SOURCE:
+        description: 'Kernel Source'
+        required: true
+        default: 'sakana164/kernel_xiaomi_sm8250'
+      KERNEL_SOURCE_BRANCH:
+        description: 'Branch'
+        required: true
+        default: 'lineage-22.1'
+      KERNEL_DEFCONFIG:
+        description: 'Defconfig'
+        required: true
+        default: 'alioth_defconfig'
+      CUSTOM_CLANG_URL:
+        description: 'Custom Clang URL'
+        required: true
+        default: 'https://raw.githubusercontent.com/ZyCromerZ/Clang/main/Clang-main-link.txt'
+      # PERSONAL_TOKEN:
+      #   description: 'Personal access token'
+      #   required: true
+      #   default: ''
+      ENABLE_KERNELSU:
+        description: 'Use KernelSU'
+        required: true
+        default: true
+        type: boolean
+      ENABLE_SUSFS:
+        description: 'Add SUSFS'
+        required: true
+        default: true
+        type: boolean
+      SUSFS_BRANCH:
+        description: 'SUSFS Branch'
+        required: true
+        default: 'kernel-4.19'
+      ADD_PATH_UMOUNT:
+        description: 'Add `path_umount` for KernelSU'
+        required: true
+        default: true
+        type: boolean
+      ENABLE_KERNELSU_DEBUG:
+        description: 'Use KernelSU Debug'
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Configuration
+      run: |
+        echo "KERNEL_SOURCE=${{ github.event.inputs.KERNEL_SOURCE }}" >> $GITHUB_ENV
+        echo "KERNEL_SOURCE_BRANCH=${{ github.event.inputs.KERNEL_SOURCE_BRANCH }}" >> $GITHUB_ENV
+        echo "KERNEL_DEFCONFIG=${{ github.event.inputs.KERNEL_DEFCONFIG }}" >> $GITHUB_ENV
+        echo "CUSTOM_CLANG_URL=${{ github.event.inputs.CUSTOM_CLANG_URL }}" >> $GITHUB_ENV
+        # echo "PERSONAL_TOKEN=${{ github.event.inputs.PERSONAL_TOKEN }}" >> $GITHUB_ENV
+        echo "ENABLE_KERNELSU=${{ github.event.inputs.ENABLE_KERNELSU }}" >> $GITHUB_ENV
+        echo "ENABLE_KERNELSU_DEBUG=${{ github.event.inputs.ENABLE_KERNELSU_DEBUG }}" >> $GITHUB_ENV
+        echo "ADD_PATH_UMOUNT=${{ github.event.inputs.ADD_PATH_UMOUNT }}" >> $GITHUB_ENV
+        echo "ENABLE_SUSFS=${{ github.event.inputs.ENABLE_SUSFS }}" >> $GITHUB_ENV
+        echo "SUSFS_BRANCH=${{ github.event.inputs.SUSFS_BRANCH }}" >> $GITHUB_ENV
+
+    - name: Setup Build Environment
+      run: |
+        echo "BUILD_TIME=$(TZ=Asia/Shanghai date "+%Y%m%d%H%M")" >> $GITHUB_ENV
+        echo "DEVICE=$(echo ${{ env.KERNEL_DEFCONFIG }} | sed 's!vendor/!!;s/_defconfig//;s/_user//;s/-perf//')" >> $GITHUB_ENV
+        sudo apt update
+        sudo apt install bc make bison build-essential curl flex g++-multilib gcc-multilib git gnupg gperf libfuse-dev lib32readline-dev lib32z1-dev liblz4-tool libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zlib1g-dev libc6-dev-i386 libncurses6 libncursesw6 lib32ncurses-dev lib32ncurses6 lib32ncursesw6 libncurses5-dev
+
+    - name: Download Custom Clang Toolchain
+      run: |
+        wget -q $(curl ${{ env.CUSTOM_CLANG_URL }}) -O clang.tar.gz
+  
+    - name: Extract Clang Toolchain
+      run: |
+        mkdir clang
+        tar -C clang/ -zxf clang.tar.gz
+
+    - name: Checkout Kernel
+      uses: actions/checkout@v4
+      with:
+        # token: ${{env.PERSONAL_TOKEN}}
+        repository: ${{ env.KERNEL_SOURCE }}
+        ref: ${{ env.KERNEL_SOURCE_BRANCH }}
+        submodules: recursive
+        path: kernel-source
+     
+    - name: Check if Defconfig exists
+      run: |
+        if [ -f "kernel-source/arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}" ]; then
+          echo "Defconfig_exists=true" >> $GITHUB_ENV
+        else
+          echo "Defconfig_exists=false" >> $GITHUB_ENV
+        fi
+      
+    - name: Update Defconfig
+      if: env.Defconfig_exists == 'false'
+      run: |
+        cd kernel-source
+        export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
+        chmod +x scripts/update_defconfig
+        ./scripts/update_defconfig ${{ env.DEVICE }}
+        echo "[+] Update Defconfig Successful"
+
+    - name: Setup KernelSU
+      if: env.ENABLE_KERNELSU == 'true'
+      run: |
+        cd kernel-source
+        git config --global user.email "76257039+sakana164@users.noreply.github.com"
+        git config --global user.name "sakana164"
+        git am ../patch/KernelSU.patch
+        echo "CONFIG_KSU=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        curl -LSs "https://raw.githubusercontent.com/sakana164/KernelSU/non-gki/kernel/setup.sh" | bash -s non-gki
+        if [ ${{ env.ENABLE_KERNELSU_DEBUG }} = true ]; then
+          echo "CONFIG_KSU_DEBUG=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        fi
+        if [ ${{ env.ADD_PATH_UMOUNT }} = true ]; then
+          git am ../patch/KernelSU-path_umount.patch
+        fi
+        git submodule add https://github.com/sakana164/KernelSU.git KernelSU
+        echo "[+] KernelSU setup done."
+        
+    - name: Apply SUSFS Patch For KernelSU
+      if: env.ENABLE_SUSFS == 'true'
+      run: |
+        git clone https://gitlab.com/simonpunk/susfs4ksu.git -b ${{ env.SUSFS_BRANCH }}
+        
+        echo "Applying SUSFS patches..."   
+        
+        # Copy SUSFS patches
+        cd kernel-source
+        cp ../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU/
+        cp ../susfs4ksu/kernel_patches/50_add_susfs_in_${{ env.SUSFS_BRANCH }}.patch ./
+        cp ../susfs4ksu/kernel_patches/fs/* ./fs/
+        cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
+
+        # Apply SUSFS patch for KernelSU
+        cd ./KernelSU  
+        patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
+          
+        # Change to kernel directory and apply SUSFS patch
+        cd kernel-source
+        patch -p1 < 50_add_susfs_in_${{ env.SUSFS_BRANCH }}.patch || true
+        
+        # Add SUSFS configuration settings
+        echo "CONFIG_KSU_SUSFS=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=n" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=n" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=n" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT==n" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+
+        
+    - name: Make working directory clean to avoid dirty
+      run: |
+        cd kernel-source
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add -A && git commit -am "Make working directory clean done" || echo "Commit failed,No changes to commit"
+
+    - name: Build Kernel
+      run: |
+        cd kernel-source
+        export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
+        export KBUILD_BUILD_HOST=sakana
+        export KBUILD_BUILD_USER=sakana164
+        make -j$(nproc --all) O=out ARCH=arm64 CC=clang ${{ env.KERNEL_DEFCONFIG }}
+
+        scripts/config --file out/.config \
+          -e THINLTO \
+          -e LTO_CLANG \
+          -d CONFIG_CFI_CLANG \
+          -d CFI_PERMISSIVE \
+          -d CFI_CLANG \
+          -e COMPAT_VDSO \
+          -e SHADOW_CALL_STACK \
+          -e SHADOW_CALL_STACK_VMAP \
+          -e RELR
+
+        make -j$(nproc --all) O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 \
+          CLANG_TRIPLE=aarch64-linux-gnu- \
+          CROSS_COMPILE=aarch64-linux-gnu- \
+          CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
+
+    - name: Checkout AnyKernel3
+      uses: actions/checkout@v4
+      with:
+        # token: ${{env.PERSONAL_TOKEN}}
+        repository: sakana164/AnyKernel3
+        path: kernel-source/AnyKernel3
+
+    - name: Prepare artifacts
+      run: |
+        cd kernel-source
+        KERNEL_NAME=$(grep "CONFIG_LOCALVERSION=" arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }} | cut -d'-' -f2 | tr -d '"')
+        sed -i "s/アリエス/$KERNEL_NAME/g" ./AnyKernel3/anykernel.sh
+        cp out/arch/arm64/boot/Image AnyKernel3
+        cp out/arch/arm64/boot/dtbo.img AnyKernel3
+        cp out/arch/arm64/boot/dtb AnyKernel3
+        ./scripts/extract-ikconfig out/arch/arm64/boot/Image > ${{ env.KERNEL_DEFCONFIG }}-${{ env.BUILD_TIME }}
+        if [ "${{ env.ENABLE_KERNELSU }}" = "true" ]; then
+          echo "ENABLE_KERNELSU=-KernelSU" >> $GITHUB_ENV
+        else
+          echo "ENABLE_KERNELSU=" >> $GITHUB_ENV
+        fi
+        if [ "${{ env.ENABLE_SUSFS }}" = "true" ]; then
+          echo "ENABLE_SUSFS=SUSFS" >> $GITHUB_ENV
+        else
+          echo "ENABLE_SUSFS=" >> $GITHUB_ENV
+        fi
+
+    - name: Upload Kernel
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.KERNEL_SOURCE_BRANCH }}-kernel-${{ env.DEVICE }}${{ env.ENABLE_KERNELSU }}-${{ env.ENABLE_SUSFS }}-${{ env.BUILD_TIME }}
+        path: |
+          kernel-source/AnyKernel3/
+          !kernel-source/AnyKernel3/*.git*
+          !kernel-source/AnyKernel3/patch
+          !kernel-source/AnyKernel3/modules
+          !kernel-source/AnyKernel3/ramdisk
+          !kernel-source/AnyKernel3/README.md
+        compression-level: 9
+  
+    - name: Upload Defconfig
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.KERNEL_SOURCE_BRANCH }}-${{ env.KERNEL_DEFCONFIG }}
+        path: |
+          kernel-source/${{ env.KERNEL_DEFCONFIG }}-${{ env.BUILD_TIME }}
+          kernel-source/arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        compression-level: 9
