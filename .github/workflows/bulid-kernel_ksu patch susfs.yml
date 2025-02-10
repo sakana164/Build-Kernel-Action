@@ -144,15 +144,15 @@ jobs:
         echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-        echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-        echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=n" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-        echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=n" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-        echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=n" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-        echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=n" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-        echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         
         cd KernelSU
         git am ../../patch/KernelSU-${{ env.SUSFS_BRANCH }}-add-susfs-v${{ env.SUSFS_VERSION }}.patch
@@ -197,6 +197,16 @@ jobs:
         repository: sakana164/AnyKernel3
         path: kernel-source/AnyKernel3
 
+    - name: Patch Boot
+      run: |
+        mkdir IMG
+        chmod +x ./magiskboot
+        unzip ramdisk.zip
+        unzip boot.zip
+        cp -f kernel-source/out/arch/arm64/boot/Image kernel
+        ./magiskboot repack boot.img
+        mv new-boot.img IMG/boot.img
+
     - name: Prepare artifacts
       run: |
         cd kernel-source
@@ -217,7 +227,7 @@ jobs:
           echo "ENABLE_SUSFS=" >> $GITHUB_ENV
         fi
 
-    - name: Upload Kernel
+    - name: Upload Kernel AnyKernel3 Package
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.KERNEL_SOURCE_BRANCH }}-kernel-${{ env.DEVICE }}${{ env.ENABLE_KERNELSU }}-${{ env.ENABLE_SUSFS }}-${{ env.BUILD_TIME }}
@@ -229,7 +239,15 @@ jobs:
           !kernel-source/AnyKernel3/ramdisk
           !kernel-source/AnyKernel3/README.md
         compression-level: 9
-  
+
+    - name: Upload IMG Package
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.KERNEL_SOURCE_BRANCH }}-IMG-${{ env.DEVICE }}${{ env.ENABLE_KERNELSU }}-${{ env.BUILD_TIME }}
+        path: |
+          IMG/
+        compression-level: 9
+
     - name: Upload Defconfig
       uses: actions/upload-artifact@v4
       with:

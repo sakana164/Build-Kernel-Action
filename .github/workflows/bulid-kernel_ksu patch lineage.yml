@@ -175,6 +175,16 @@ jobs:
         repository: sakana164/AnyKernel3
         path: kernel-source/AnyKernel3
 
+    - name: Patch Boot
+      run: |
+        mkdir IMG
+        chmod +x ./magiskboot
+        unzip ramdisk.zip
+        unzip boot.zip
+        cp -f kernel-source/out/arch/arm64/boot/Image kernel
+        ./magiskboot repack boot.img
+        mv new-boot.img IMG/boot.img
+
     - name: Prepare artifacts
       run: |
         cd kernel-source
@@ -190,7 +200,7 @@ jobs:
           echo "ENABLE_KERNELSU=" >> $GITHUB_ENV
         fi
 
-    - name: Upload Kernel
+    - name: Upload Kernel AnyKernel3 Package
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.KERNEL_SOURCE_BRANCH }}-kernel-${{ env.DEVICE }}${{ env.ENABLE_KERNELSU }}-${{ env.BUILD_TIME }}
@@ -201,6 +211,14 @@ jobs:
           !kernel-source/AnyKernel3/modules
           !kernel-source/AnyKernel3/ramdisk
           !kernel-source/AnyKernel3/README.md
+        compression-level: 9
+
+    - name: Upload IMG Package
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.KERNEL_SOURCE_BRANCH }}-IMG-${{ env.DEVICE }}${{ env.ENABLE_KERNELSU }}-${{ env.BUILD_TIME }}
+        path: |
+          IMG/
         compression-level: 9
 
     - name: Upload Defconfig
