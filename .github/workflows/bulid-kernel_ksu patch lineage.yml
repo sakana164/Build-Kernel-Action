@@ -102,22 +102,17 @@ jobs:
         submodules: recursive
         path: kernel-source
      
-    - name: Check if Defconfig exists
+    - name: Check Defconfig
       run: |
         if [ -f "kernel-source/arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}" ]; then
-          echo "Defconfig_exists=true" >> $GITHUB_ENV
+          echo "[+] Defconfig detected to exist"
         else
-          echo "Defconfig_exists=false" >> $GITHUB_ENV
+          cd kernel-source
+          export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
+          chmod +x scripts/update_defconfig
+          ./scripts/update_defconfig ${{ env.DEVICE }}
+          echo "[+] Update Defconfig Successful"
         fi
-      
-    - name: Update Defconfig
-      if: env.Defconfig_exists == 'false'
-      run: |
-        cd kernel-source
-        export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
-        chmod +x scripts/update_defconfig
-        ./scripts/update_defconfig ${{ env.DEVICE }}
-        echo "[+] Update Defconfig Successful"
 
     - name: Setup KernelSU
       if: env.ENABLE_KERNELSU == 'true'
