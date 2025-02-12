@@ -1,0 +1,226 @@
+name: Build Kernel_diff patch lineage mksu
+
+on:
+  workflow_dispatch:
+    inputs:
+      KERNEL_SOURCE:
+        description: 'Kernel Source'
+        required: true
+        default: 'sakana164/kernel_xiaomi_sm8250'
+      KERNEL_SOURCE_BRANCH:
+        description: 'Branch'
+        required: true
+        default: 'lineage-22.1'
+      KERNEL_DEFCONFIG:
+        description: 'Defconfig'
+        required: true
+        default: 'alioth_defconfig'
+      AOSP_CLANG_BRANCH:
+        description: 'AOSP Clang Branch'
+        required: true
+        default: 'main'
+      AOSP_CLANG_VERSION:
+        description: 'AOSP Clang Version'
+        required: true
+        default: 'r530567'
+      USE_CUSTOM_CLANG:
+        description: 'Use Custom Clang'
+        required: true
+        default: true
+        type: boolean
+      CUSTOM_CLANG_URL:
+        description: 'Custom Clang URL'
+        required: true
+        default: 'https://raw.githubusercontent.com/ZyCromerZ/Clang/main/Clang-main-link.txt'
+      # PERSONAL_TOKEN:
+      #   description: 'Personal access token'
+      #   required: true
+      #   default: ''
+      ENABLE_KERNELSU:
+        description: 'Use KernelSU'
+        required: true
+        default: true
+        type: boolean
+      ADD_PATH_UMOUNT:
+        description: 'Add `path_umount` for KernelSU'
+        required: true
+        default: true
+        type: boolean
+      ENABLE_KERNELSU_DEBUG:
+        description: 'Use KernelSU Debug'
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Configuration
+      run: |
+        echo "KERNEL_SOURCE=${{ github.event.inputs.KERNEL_SOURCE }}" >> $GITHUB_ENV
+        echo "KERNEL_SOURCE_BRANCH=${{ github.event.inputs.KERNEL_SOURCE_BRANCH }}" >> $GITHUB_ENV
+        echo "KERNEL_DEFCONFIG=${{ github.event.inputs.KERNEL_DEFCONFIG }}" >> $GITHUB_ENV
+        echo "AOSP_CLANG_BRANCH=${{ github.event.inputs.AOSP_CLANG_BRANCH }}" >> $GITHUB_ENV
+        echo "AOSP_CLANG_VERSION=${{ github.event.inputs.AOSP_CLANG_VERSION }}" >> $GITHUB_ENV
+        echo "USE_CUSTOM_CLANG=${{ github.event.inputs.USE_CUSTOM_CLANG }}" >> $GITHUB_ENV
+        echo "CUSTOM_CLANG_URL=${{ github.event.inputs.CUSTOM_CLANG_URL }}" >> $GITHUB_ENV
+        # echo "PERSONAL_TOKEN=${{ github.event.inputs.PERSONAL_TOKEN }}" >> $GITHUB_ENV
+        echo "ENABLE_KERNELSU=${{ github.event.inputs.ENABLE_KERNELSU }}" >> $GITHUB_ENV
+        echo "ENABLE_KERNELSU_DEBUG=${{ github.event.inputs.ENABLE_KERNELSU_DEBUG }}" >> $GITHUB_ENV
+        echo "ADD_PATH_UMOUNT=${{ github.event.inputs.ADD_PATH_UMOUNT }}" >> $GITHUB_ENV
+
+    - name: Setup Build Environment
+      run: |
+        echo "BUILD_TIME=$(TZ=Asia/Shanghai date "+%Y%m%d%H%M")" >> $GITHUB_ENV
+        echo "DEVICE=$(echo ${{ env.KERNEL_DEFCONFIG }} | sed 's!vendor/!!;s/_defconfig//;s/_user//;s/-perf//')" >> $GITHUB_ENV
+        sudo apt update
+        sudo apt install bc make bison build-essential curl flex g++-multilib gcc-multilib git gnupg gperf libfuse-dev lib32readline-dev lib32z1-dev liblz4-tool libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zlib1g-dev libc6-dev-i386 libncurses6 libncursesw6 lib32ncurses-dev lib32ncurses6 lib32ncursesw6 libncurses5-dev
+
+    - name: Download AOSP Clang Toolchain
+      if: env.USE_CUSTOM_CLANG == 'false'
+      run: |
+        wget -q https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/${{ env.AOSP_CLANG_BRANCH }}/clang-${{ env.AOSP_CLANG_VERSION }}.tar.gz -O clang.tar.gz
+  
+    - name: Download Custom Clang Toolchain
+      if: env.USE_CUSTOM_CLANG == 'true'
+      run: |
+        wget -q $(curl ${{ env.CUSTOM_CLANG_URL }}) -O clang.tar.gz
+  
+    - name: Extract Clang Toolchain
+      run: |
+        mkdir clang
+        tar -C clang/ -zxf clang.tar.gz
+
+    - name: Checkout Kernel
+      uses: actions/checkout@v4
+      with:
+        # token: ${{env.PERSONAL_TOKEN}}
+        repository: ${{ env.KERNEL_SOURCE }}
+        ref: ${{ env.KERNEL_SOURCE_BRANCH }}
+        submodules: recursive
+        path: kernel-source
+     
+    - name: Check Defconfig
+      run: |
+        if [ -f "kernel-source/arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}" ]; then
+          echo "[+] Defconfig detected to exist"
+        else
+          cd kernel-source
+          export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
+          chmod +x scripts/update_defconfig
+          ./scripts/update_defconfig ${{ env.DEVICE }}
+          echo "[+] Update Defconfig Successful"
+        fi
+
+    - name: Setup KernelSU
+      if: env.ENABLE_KERNELSU == 'true'
+      run: |
+        cd kernel-source
+        git config --global user.email "76257039+sakana164@users.noreply.github.com"
+        git config --global user.name "sakana164"
+        git am ../patch/KernelSU_mksu.patch
+        echo "CONFIG_KSU=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        curl -LSs "https://raw.githubusercontent.com/sakana164/KernelSU/mksu/kernel/setup.sh" | bash -s mksu
+        if [ ${{ env.ENABLE_KERNELSU_DEBUG }} = true ]; then
+          echo "CONFIG_KSU_DEBUG=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        fi
+        if [ ${{ env.ADD_PATH_UMOUNT }} = true ]; then
+          git am ../patch/KernelSU-path_umount.patch
+        fi
+        git submodule add -b mksu https://github.com/sakana164/KernelSU.git KernelSU
+        echo "[+] KernelSU setup done."
+
+    - name: Make working directory clean to avoid dirty
+      run: |
+        cd kernel-source
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add -A && git commit -am "Make working directory clean done" || echo "Commit failed,No changes to commit"
+
+    - name: Build Kernel
+      run: |
+        cd kernel-source
+        export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
+        export KBUILD_BUILD_HOST=sakana
+        export KBUILD_BUILD_USER=sakana164
+        make -j$(nproc --all) O=out ARCH=arm64 CC=clang ${{ env.KERNEL_DEFCONFIG }}
+
+        scripts/config --file out/.config \
+          -e THINLTO \
+          -e LTO_CLANG \
+          -d CONFIG_CFI_CLANG \
+          -d CFI_PERMISSIVE \
+          -d CFI_CLANG \
+          -e COMPAT_VDSO \
+          -e SHADOW_CALL_STACK \
+          -e SHADOW_CALL_STACK_VMAP \
+          -e RELR
+
+        make -j$(nproc --all) O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 \
+          CLANG_TRIPLE=aarch64-linux-gnu- \
+          CROSS_COMPILE=aarch64-linux-gnu- \
+          CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
+
+    - name: Checkout AnyKernel3
+      uses: actions/checkout@v4
+      with:
+        # token: ${{env.PERSONAL_TOKEN}}
+        repository: sakana164/AnyKernel3
+        path: kernel-source/AnyKernel3
+
+    - name: Patch Boot
+      run: |
+        mkdir IMG
+        chmod +x ./magiskboot
+        unzip ramdisk.zip
+        unzip boot.zip
+        cp -f kernel-source/out/arch/arm64/boot/Image kernel
+        ./magiskboot repack boot.img
+        mv new-boot.img IMG/boot.img
+
+    - name: Prepare artifacts
+      run: |
+        cd kernel-source
+        KERNEL_NAME=$(grep "CONFIG_LOCALVERSION=" arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }} | cut -d'-' -f2 | tr -d '"')
+        sed -i "s/アリエス/$KERNEL_NAME/g" ./AnyKernel3/anykernel.sh
+        cp out/arch/arm64/boot/Image AnyKernel3
+        cp out/arch/arm64/boot/dtbo.img AnyKernel3
+        cp out/arch/arm64/boot/dtb AnyKernel3
+        ./scripts/extract-ikconfig out/arch/arm64/boot/Image > ${{ env.KERNEL_DEFCONFIG }}-${{ env.BUILD_TIME }}
+        if [ "${{ env.ENABLE_KERNELSU }}" = "true" ]; then
+          echo "ENABLE_KERNELSU=-MagicMount KernelSU" >> $GITHUB_ENV
+        else
+          echo "ENABLE_KERNELSU=" >> $GITHUB_ENV
+        fi
+
+    - name: Upload Kernel AnyKernel3 Package
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.KERNEL_SOURCE_BRANCH }}-kernel-${{ env.DEVICE }}${{ env.ENABLE_KERNELSU }}-${{ env.BUILD_TIME }}
+        path: |
+          kernel-source/AnyKernel3/
+          !kernel-source/AnyKernel3/*.git*
+          !kernel-source/AnyKernel3/patch
+          !kernel-source/AnyKernel3/modules
+          !kernel-source/AnyKernel3/ramdisk
+          !kernel-source/AnyKernel3/README.md
+        compression-level: 9
+
+    - name: Upload IMG Package
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.KERNEL_SOURCE_BRANCH }}-IMG-${{ env.DEVICE }}${{ env.ENABLE_KERNELSU }}-${{ env.BUILD_TIME }}
+        path: |
+          IMG/
+        compression-level: 9
+
+    - name: Upload Defconfig
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.KERNEL_SOURCE_BRANCH }}-${{ env.KERNEL_DEFCONFIG }}
+        path: |
+          kernel-source/${{ env.KERNEL_DEFCONFIG }}-${{ env.BUILD_TIME }}
+          kernel-source/arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        compression-level: 9
