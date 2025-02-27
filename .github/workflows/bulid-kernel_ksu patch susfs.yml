@@ -41,16 +41,20 @@ on:
         description: 'SUSFS Version'
         required: true
         default: '1.5.5'
+      SUSFS_KERNEL_HASH:
+        description: 'SUSFS_KERNEL_PATCH_HASH'
+        required: true
+        default: 'af8fdfc7e9a3b6c67a8068f1d82c29db9e456022'
       ADD_PATH_UMOUNT:
         description: 'Add `path_umount` for KernelSU'
         required: true
         default: true
         type: boolean
-      ENABLE_KERNELSU_DEBUG:
-        description: 'Use KernelSU Debug'
-        required: true
-        default: false
-        type: boolean
+      # ENABLE_KERNELSU_DEBUG:
+      #  description: 'Use KernelSU Debug'
+      #  required: true
+      #  default: false
+      #  type: boolean
 
 jobs:
   build:
@@ -65,11 +69,12 @@ jobs:
         echo "CUSTOM_CLANG_URL=${{ github.event.inputs.CUSTOM_CLANG_URL }}" >> $GITHUB_ENV
         # echo "PERSONAL_TOKEN=${{ github.event.inputs.PERSONAL_TOKEN }}" >> $GITHUB_ENV
         echo "ENABLE_KERNELSU=${{ github.event.inputs.ENABLE_KERNELSU }}" >> $GITHUB_ENV
-        echo "ENABLE_KERNELSU_DEBUG=${{ github.event.inputs.ENABLE_KERNELSU_DEBUG }}" >> $GITHUB_ENV
+        # echo "ENABLE_KERNELSU_DEBUG=${{ github.event.inputs.ENABLE_KERNELSU_DEBUG }}" >> $GITHUB_ENV
         echo "ADD_PATH_UMOUNT=${{ github.event.inputs.ADD_PATH_UMOUNT }}" >> $GITHUB_ENV
         echo "ENABLE_SUSFS=${{ github.event.inputs.ENABLE_SUSFS }}" >> $GITHUB_ENV
         echo "SUSFS_BRANCH=${{ github.event.inputs.SUSFS_BRANCH }}" >> $GITHUB_ENV
         echo "SUSFS_VERSION=${{ github.event.inputs.SUSFS_VERSION }}" >> $GITHUB_ENV
+        echo "SUSFS_KERNEL_HASH=${{ github.event.inputs.SUSFS_KERNEL_HASH }}" >> $GITHUB_ENV
 
     - name: Setup Build Environment
       run: |
@@ -96,6 +101,16 @@ jobs:
         submodules: recursive
         path: kernel-source
      
+    - name: Apply SUSFS Patch For Kernel
+      if: env.ENABLE_SUSFS == 'true'
+      run: |
+        cd kernel-source
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git fetch https://github.com/${{ env.KERNEL_SOURCE }}.git ${{ env.SUSFS_KERNEL_HASH }}
+        git cherry-pick ${{ env.SUSFS_KERNEL_HASH }}
+        echo "[+] Susfs patch for kernel setup done."
+
     - name: Check Defconfig
       run: |
         if [ -f "kernel-source/arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}" ]; then
@@ -117,9 +132,9 @@ jobs:
         git am ../patch/KernelSU.patch
         echo "CONFIG_KSU=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         curl -LSs "https://raw.githubusercontent.com/sakana164/KernelSU/non-gki/kernel/setup.sh" | bash -s non-gki
-        if [ ${{ env.ENABLE_KERNELSU_DEBUG }} = true ]; then
-          echo "CONFIG_KSU_DEBUG=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-        fi
+        # if [ ${{ env.ENABLE_KERNELSU_DEBUG }} = true ]; then
+        #  echo "CONFIG_KSU_DEBUG=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        # fi
         if [ ${{ env.ADD_PATH_UMOUNT }} = true ]; then
           git am ../patch/KernelSU-path_umount.patch
         fi
