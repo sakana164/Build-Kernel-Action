@@ -31,7 +31,7 @@ on:
       CUSTOM_CLANG_URL:
         description: 'Custom Clang URL'
         required: true
-        default: 'https://raw.githubusercontent.com/ZyCromerZ/Clang/main/Clang-main-link.txt'
+        default: 'https://raw.githubusercontent.com/sakana164/Build-Kernel-Action/main/clang_202504023.txt'
       # PERSONAL_TOKEN:
       #   description: 'Personal access token'
       #   required: true
