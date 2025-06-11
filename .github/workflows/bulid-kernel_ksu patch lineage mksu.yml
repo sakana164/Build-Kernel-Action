@@ -22,7 +22,7 @@ on:
       AOSP_CLANG_VERSION:
         description: 'AOSP Clang Version'
         required: true
-        default: 'r530567'
+        default: 'r547379'
       USE_CUSTOM_CLANG:
         description: 'Use Custom Clang'
         required: true
