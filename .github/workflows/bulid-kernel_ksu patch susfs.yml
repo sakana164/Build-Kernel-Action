@@ -198,7 +198,8 @@ jobs:
         make -j$(nproc --all) O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 \
           CLANG_TRIPLE=aarch64-linux-gnu- \
           CROSS_COMPILE=aarch64-linux-gnu- \
-          CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
+          CROSS_COMPILE_COMPAT=arm-linux-gnueabi- \
+          KBUILD_CFLAGS=-Wno-default-const-init-unsafe
 
     - name: Checkout AnyKernel3
       uses: actions/checkout@v4
