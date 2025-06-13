@@ -93,6 +93,25 @@ jobs:
         mkdir clang
         tar -C clang/ -zxf clang.tar.gz
 
+    - name: Download GCC Toolchain
+      if: env.USE_CUSTOM_CLANG == 'true'
+      run: |
+        mkdir -p gcc/gcc64
+        mkdir -p gcc/gcc32
+
+        cd gcc/gcc64
+        git init
+        git remote add origin https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9.git
+        git fetch --depth 1 origin
+        git checkout FETCH_HEAD
+
+        cd ../gcc32
+        git init
+        git remote add origin https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9.git
+        git fetch --depth 1 origin
+        git checkout FETCH_HEAD
+        echo "GCC Toolchain download complete"
+
     - name: Checkout Kernel
       uses: actions/checkout@v4
       with:
@@ -160,8 +179,8 @@ jobs:
 
         make -j$(nproc --all) O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 \
           CLANG_TRIPLE=aarch64-linux-gnu- \
-          CROSS_COMPILE=aarch64-linux-gnu- \
-          CROSS_COMPILE_COMPAT=arm-linux-gnueabi- \
+          CROSS_COMPILE=$GITHUB_WORKSPACE/gcc/gcc64/bin/aarch64-linux-android- \
+          CROSS_COMPILE_COMPAT=$GITHUB_WORKSPACE/gcc/gcc32/bin/arm-linux-androideabi- \
           KBUILD_CFLAGS=-Wno-default-const-init-unsafe
 
     - name: Checkout AnyKernel3
