@@ -26,7 +26,7 @@ on:
       USE_CUSTOM_CLANG:
         description: 'Use Custom Clang'
         required: true
-        default: true
+        default: false
         type: boolean
       CUSTOM_CLANG_URL:
         description: 'Custom Clang URL'
