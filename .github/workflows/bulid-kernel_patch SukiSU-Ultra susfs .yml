@@ -121,8 +121,8 @@ jobs:
         cd kernel-source
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
-        git fetch https://github.com/sakana164/kernel_xiaomi_sm8250.git df182778d8baccc7a937a33ad25f7d26ae727795
-        git cherry-pick df182778d8baccc7a937a33ad25f7d26ae727795
+        git fetch https://github.com/sakana164/kernel_xiaomi_sm8250.git 099441b4cd054bda8e223dae1f3d0db6fe6895e6
+        git cherry-pick 099441b4cd054bda8e223dae1f3d0db6fe6895e6
         echo "[+] Susfs patch for kernel setup done."
 
     - name: Setup KernelSU
@@ -164,7 +164,6 @@ jobs:
         echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-        echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
