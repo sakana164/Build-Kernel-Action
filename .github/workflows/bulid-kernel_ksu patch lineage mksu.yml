@@ -185,9 +185,15 @@ jobs:
         cd kernel-source
         KERNEL_NAME=$(grep "CONFIG_LOCALVERSION=" arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }} | cut -d'-' -f2 | tr -d '"')
         sed -i "s/アリエス/$KERNEL_NAME/g" ./AnyKernel3/anykernel.sh
-        cp out/arch/arm64/boot/Image AnyKernel3
-        cp out/arch/arm64/boot/dtbo.img AnyKernel3
-        cp out/arch/arm64/boot/dtb AnyKernel3
+        if [ -f "out/arch/arm64/boot/Image" ]; then
+            cp out/arch/arm64/boot/Image AnyKernel3
+        fi
+        if [ -f "out/arch/arm64/boot/dtbo.img" ]; then
+            cp out/arch/arm64/boot/dtbo.img AnyKernel3
+        fi
+        if [ -f "out/arch/arm64/boot/dtb" ]; then
+            cp out/arch/arm64/boot/dtb AnyKernel3
+        fi
         ./scripts/extract-ikconfig out/arch/arm64/boot/Image > ${{ env.KERNEL_DEFCONFIG }}-${{ env.BUILD_TIME }}
         if [ "${{ env.ENABLE_KERNELSU }}" = "true" ]; then
           echo "ENABLE_KERNELSU=-MagicMount KernelSU" >> $GITHUB_ENV
