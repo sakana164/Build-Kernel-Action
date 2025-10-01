@@ -119,8 +119,8 @@ jobs:
         cd kernel-source
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
-        git fetch https://github.com/sakana164/kernel_xiaomi_sm8250.git 6ee482e1b6f6037c3feb963b11660dc1a92cb4c7 7a26de1b77c01ba5b7cf97a800ccc7f540999884
-        git cherry-pick 6ee482e1b6f6037c3feb963b11660dc1a92cb4c7 7a26de1b77c01ba5b7cf97a800ccc7f540999884
+        git fetch https://github.com/sakana164/kernel_xiaomi_sm8250.git c5fc08336a1f71acc40d56e59fd0af36a6223eca 7a26de1b77c01ba5b7cf97a800ccc7f540999884
+        git cherry-pick c5fc08336a1f71acc40d56e59fd0af36a6223eca 7a26de1b77c01ba5b7cf97a800ccc7f540999884
         echo "[+] Susfs patch for kernel setup done."
 
     - name: Setup KernelSU
