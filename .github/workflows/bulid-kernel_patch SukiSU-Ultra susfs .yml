@@ -236,10 +236,26 @@ jobs:
       run: |
         mkdir IMG
         chmod +x ./magiskboot
-        unzip ramdisk.zip
+        echo "Getting latest OrangeFox Recovery release..."
+        LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/sakana164/android_device_xiaomi_alioth-OFRP/releases/latest | grep -oP '"browser_download_url": "\K[^"]+\.zip' | head -1)
+        echo "Downloading: $LATEST_RELEASE_URL"
+        wget "$LATEST_RELEASE_URL" -O ofox-recovery.zip
+        if unzip -j ofox-recovery.zip "recovery.img" -d ./ 2>/dev/null; then
+            echo "Successfully extracted recovery.img"
+        else
+            echo "Error: Could not find recovery.img in the ZIP file"
+        fi
+        if [ -f "recovery.img" ]; then
+            echo "Unpacking recovery.img to extract ramdisk..."
+            ./magiskboot unpack recovery.img
+        else
+            echo "Error: recovery.img not found after extraction"
+            exit 1
+        fi
         unzip boot.zip
         cp -f kernel-source/out/arch/arm64/boot/Image kernel
         ./magiskboot repack boot.img
+        echo "Successfully repack boot.img"
         mv new-boot.img IMG/boot.img
 
     - name: Prepare artifacts
