@@ -78,8 +78,40 @@ jobs:
         sudo apt update
         sudo apt install bc make bison build-essential curl flex g++-multilib gcc-multilib git gnupg gperf libfuse-dev lib32readline-dev lib32z1-dev liblz4-tool libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zlib1g-dev libc6-dev-i386 libncurses6 libncursesw6 lib32ncurses-dev lib32ncurses6 lib32ncursesw6 libncurses5-dev
 
+    - name: Setup Ccache
+      run: |
+        sudo apt install -y ccache
+        ccache --version
+        mkdir -p $GITHUB_WORKSPACE/ccache
+        ccache -o compression=true
+        ccache -o hard_link=true
+        ccache -o hash_dir=false
+        ccache -M 4G
+        echo "CCACHE_DIR=$GITHUB_WORKSPACE/ccache" >> $GITHUB_ENV
+
+    - name: Restore Ccache
+      uses: actions/cache@v4
+      id: ccache-cache
+      with:
+        path: ccache
+        key: ccache-${{ env.KERNEL_SOURCE }}-${{ env.KERNEL_SOURCE_BRANCH }}-${{ env.DEVICE }}
+        restore-keys: |
+          ccache-${{ env.KERNEL_SOURCE }}-${{ env.KERNEL_SOURCE_BRANCH }}-
+          ccache-${{ env.KERNEL_SOURCE }}-
+          ccache-
+
+    - name: Cache Clang Toolchain
+      if: env.USE_CUSTOM_CLANG != 'true'
+      id: cache-clang
+      uses: actions/cache@v4
+      with:
+        path: clang
+        key: clang-${{ env.AOSP_CLANG_VERSION }}
+        restore-keys: |
+          clang-
+
     - name: Download AOSP Clang Toolchain
-      if: env.USE_CUSTOM_CLANG == 'false'
+      if: env.USE_CUSTOM_CLANG == 'false' && steps.cache-clang.outputs.cache-hit != 'true'
       run: |
         wget -q https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/${{ env.AOSP_CLANG_BRANCH }}/clang-${{ env.AOSP_CLANG_VERSION }}.tar.gz -O clang.tar.gz
   
@@ -89,6 +121,7 @@ jobs:
         wget -q $(curl ${{ env.CUSTOM_CLANG_URL }}) -O clang.tar.gz
   
     - name: Extract Clang Toolchain
+      if: env.USE_CUSTOM_CLANG == 'true' || steps.cache-clang.outputs.cache-hit != 'true'
       run: |
         mkdir clang
         tar -C clang/ -zxf clang.tar.gz
@@ -145,7 +178,8 @@ jobs:
         export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
         export KBUILD_BUILD_HOST=sakana
         export KBUILD_BUILD_USER=sakana164
-        make -j$(nproc --all) O=out ARCH=arm64 CC=clang ${{ env.KERNEL_DEFCONFIG }}
+
+        make -j$(nproc --all) O=out ARCH=arm64 CC="ccache clang" ${{ env.KERNEL_DEFCONFIG }}
 
         scripts/config --file out/.config \
           -e THINLTO \
@@ -158,10 +192,14 @@ jobs:
           -e SHADOW_CALL_STACK_VMAP \
           -e RELR
 
-        make -j$(nproc --all) O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 \
+        make -j$(nproc --all) O=out ARCH=arm64 CC="ccache clang" LLVM=1 LLVM_IAS=1 \
           CLANG_TRIPLE=aarch64-linux-gnu- \
           CROSS_COMPILE=aarch64-linux-gnu- \
           CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
+
+    - name: Show Ccache Stats
+      run: |
+        ccache -sv
 
     - name: Checkout AnyKernel3
       uses: actions/checkout@v4
