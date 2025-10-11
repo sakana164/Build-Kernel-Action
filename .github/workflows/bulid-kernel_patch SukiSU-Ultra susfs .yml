@@ -81,7 +81,11 @@ jobs:
 
     - name: Setup Ccache
       run: |
-        sudo apt install -y ccache
+        CCACHE_VERSION=$(curl -s https://api.github.com/repos/ccache/ccache/releases/latest | grep '"tag_name":' | sed 's/.*"v\([^"]*\)".*/\1/')
+        wget -q https://github.com/ccache/ccache/releases/download/v${CCACHE_VERSION}/ccache-${CCACHE_VERSION}-linux-x86_64.tar.xz
+        tar -xf ccache-${CCACHE_VERSION}-linux-x86_64.tar.xz
+        sudo cp ccache-${CCACHE_VERSION}-linux-x86_64/ccache /usr/local/bin/
+        sudo chmod +x /usr/local/bin/ccache
         ccache --version
         mkdir -p $GITHUB_WORKSPACE/ccache
         ccache -o compression=true
