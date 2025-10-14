@@ -159,11 +159,13 @@ jobs:
     - name: Apply SUSFS Patch For Kernel
       if: env.ENABLE_SUSFS == 'true'
       run: |
+        wget -q https://github.com/sakana164/kernel_xiaomi_sm8250/commit/f1f659b40d11ef10f5568a27731c219b9138937e.patch -O susfs-main-patch.patch
+        wget -q https://github.com/sakana164/kernel_xiaomi_sm8250/commit/7a26de1b77c01ba5b7cf97a800ccc7f540999884.patch -O susfs-patch-1.patch
         cd kernel-source
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
-        git fetch https://github.com/sakana164/kernel_xiaomi_sm8250.git 691faf61cbdcacb6f7114dda681dba96bf6c017e 7a26de1b77c01ba5b7cf97a800ccc7f540999884
-        git cherry-pick 691faf61cbdcacb6f7114dda681dba96bf6c017e 7a26de1b77c01ba5b7cf97a800ccc7f540999884
+        git am ../susfs-main-patch.patch
+        git am ../susfs-patch-1.patch
         echo "[+] Susfs patch for kernel setup done."
 
     - name: Setup KernelSU
