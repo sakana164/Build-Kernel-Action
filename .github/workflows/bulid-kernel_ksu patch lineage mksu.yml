@@ -46,11 +46,15 @@ on:
         required: true
         default: true
         type: boolean
-      ENABLE_KERNELSU_DEBUG:
-        description: 'Use KernelSU Debug'
+      KERNELSU_VERSION:
+        description: 'Pick KERNELSU_VERSION'
         required: true
-        default: false
-        type: boolean
+        default: rksu
+        type: choice
+        options:
+          - mksu
+          - rksu
+          - xxksu
 
 jobs:
   build:
@@ -68,7 +72,7 @@ jobs:
         echo "CUSTOM_CLANG_URL=${{ github.event.inputs.CUSTOM_CLANG_URL }}" >> $GITHUB_ENV
         # echo "PERSONAL_TOKEN=${{ github.event.inputs.PERSONAL_TOKEN }}" >> $GITHUB_ENV
         echo "ENABLE_KERNELSU=${{ github.event.inputs.ENABLE_KERNELSU }}" >> $GITHUB_ENV
-        echo "ENABLE_KERNELSU_DEBUG=${{ github.event.inputs.ENABLE_KERNELSU_DEBUG }}" >> $GITHUB_ENV
+        echo "KERNELSU_VERSION=${{ github.event.inputs.KERNELSU_VERSION }}" >> $GITHUB_ENV
         echo "ADD_PATH_UMOUNT=${{ github.event.inputs.ADD_PATH_UMOUNT }}" >> $GITHUB_ENV
 
     - name: Setup Build Environment
@@ -162,16 +166,24 @@ jobs:
         git config --global user.email "76257039+sakana164@users.noreply.github.com"
         git config --global user.name "sakana164"
         git am ../patch/KernelSU_mksu.patch
-        echo "CONFIG_KSU=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-        curl -LSs "https://raw.githubusercontent.com/sakana164/KernelSU/mksu/kernel/setup.sh" | bash -s mksu
-        if [ ${{ env.ENABLE_KERNELSU_DEBUG }} = true ]; then
-          echo "CONFIG_KSU_DEBUG=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-        fi
         if [ ${{ env.ADD_PATH_UMOUNT }} = true ]; then
           git am ../patch/KernelSU-path_umount.patch
+          echo "[+] path_umount patch applied."
         fi
-        git submodule add -b mksu https://github.com/sakana164/KernelSU.git KernelSU
-        echo "[+] KernelSU setup done."
+        echo "CONFIG_KSU=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        if [ ${{ env.KERNELSU_VERSION }} = "mksu" ]; then
+          curl -LSs "https://raw.githubusercontent.com/5ec1cff/KernelSU/mksu/kernel/setup.sh" | bash -s main
+          git submodule add -b main https://github.com/5ec1cff/KernelSU.git KernelSU
+          echo "[+] MagicMount KernelSU setup done."
+        elif [ ${{ env.KERNELSU_VERSION }} = "xxksu" ]; then
+          curl -LSs "https://raw.githubusercontent.com/backslashxx/KernelSU/main/kernel/setup.sh" | bash -s master
+          git submodule add -b master https://github.com/backslashxx/KernelSU.git KernelSU
+          echo "[+] backslashxx KernelSU setup done."
+        elif [ ${{ env.KERNELSU_VERSION }} = "rksu" ]; then
+          curl -LSs "https://raw.githubusercontent.com/rsuntk/KernelSU/main/kernel/setup.sh" | bash -s main
+          git submodule add -b main https://github.com/rsuntk/KernelSU.git KernelSU
+          echo "[+] Rsuntk KernelSU setup done."
+        fi
 
     - name: Make working directory clean to avoid dirty
       run: |
@@ -258,7 +270,13 @@ jobs:
         fi
         ./scripts/extract-ikconfig out/arch/arm64/boot/Image > ${{ env.KERNEL_DEFCONFIG }}-${{ env.BUILD_TIME }}
         if [ "${{ env.ENABLE_KERNELSU }}" = "true" ]; then
-          echo "ENABLE_KERNELSU=-MagicMount KernelSU" >> $GITHUB_ENV
+          if [ ${{ env.KERNELSU_VERSION }} = "mksu" ]; then
+            echo "ENABLE_KERNELSU=-MagicMount KernelSU" >> $GITHUB_ENV
+          elif [ ${{ env.KERNELSU_VERSION }} = "xxksu" ]; then
+            echo "ENABLE_KERNELSU=-backslashxx KernelSU" >> $GITHUB_ENV
+          elif [ ${{ env.KERNELSU_VERSION }} = "rksu" ]; then
+            echo "ENABLE_KERNELSU=-Rsuntk KernelSU" >> $GITHUB_ENV
+          fi
         else
           echo "ENABLE_KERNELSU=" >> $GITHUB_ENV
         fi
