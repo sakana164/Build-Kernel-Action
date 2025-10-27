@@ -96,15 +96,24 @@ jobs:
         ccache -o sloppiness=file_macro,locale,time_macros,include_file_ctime,include_file_mtime
         ccache -M 4G
         echo "CCACHE_DIR=$GITHUB_WORKSPACE/ccache" >> $GITHUB_ENV
+        CACHE_BRANCH=""
+        if [[ "${{ env.KERNEL_SOURCE_BRANCH }}" == *"qcom"* ]]; then
+          CACHE_BRANCH="-qcom"
+          echo "缓存策略: $CACHE_BRANCH"
+        elif [[ "${{ env.KERNEL_SOURCE_BRANCH }}" == *"lineage"* ]]; then
+          CACHE_BRANCH="-lineage"
+          echo "缓存策略: $CACHE_BRANCH"
+        fi
+        echo "CACHE_BRANCH=$CACHE_BRANCH" >> $GITHUB_ENV
 
     - name: Restore Ccache
       uses: actions/cache@v4
       id: ccache-cache
       with:
         path: ccache
-        key: ccache-${{ env.KERNEL_SOURCE }}-${{ env.KERNEL_SOURCE_BRANCH }}-${{ env.DEVICE }}
+        key: ccache-${{ env.KERNEL_SOURCE }}-${{ env.DEVICE }}${{ env.CACHE_BRANCH }}
         restore-keys: |
-          ccache-${{ env.KERNEL_SOURCE }}-${{ env.KERNEL_SOURCE_BRANCH }}-
+          ccache-${{ env.KERNEL_SOURCE }}-${{ env.DEVICE }}-
           ccache-${{ env.KERNEL_SOURCE }}-
           ccache-
 
