@@ -259,6 +259,7 @@ jobs:
         cd kernel-source
         KERNEL_NAME=$(grep "CONFIG_LOCALVERSION=" arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }} | cut -d'-' -f2 | tr -d '"')
         sed -i "s/アリエス/$KERNEL_NAME/g" ./AnyKernel3/anykernel.sh
+        sed -i "s/DEVICE_NAME/$DEVICE/g" ./AnyKernel3/anykernel.sh
         if [ -f "out/arch/arm64/boot/Image" ]; then
             cp out/arch/arm64/boot/Image AnyKernel3
         fi
