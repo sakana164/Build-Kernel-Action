@@ -313,3 +313,16 @@ jobs:
           kernel-source/${{ env.KERNEL_DEFCONFIG }}-${{ env.BUILD_TIME }}
           kernel-source/arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         compression-level: 9
+
+    - name: Create tar archive of out directory
+      run: |
+       cd kernel-source
+       tar -czf kernel-out-full.tar.gz out/
+    
+    - name: Upload compressed out directory
+      uses: actions/upload-artifact@v4
+      with:
+        name: kernel-out-full-${{ env.BUILD_TIME }}
+        path: kernel-source/kernel-out-full.tar.gz
+        retention-days: 7
+
