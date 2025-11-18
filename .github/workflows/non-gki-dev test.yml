@@ -93,7 +93,7 @@ jobs:
         ccache -o compiler_check=content
         ccache -o direct_mode=true
         ccache -o depend_mode=true
-        ccache -o sloppiness=file_macro,locale,time_macros,include_file_ctime,include_file_mtime
+        ccache -o sloppiness=file_macro,locale,time_macros,include_file_ctime,include_file_mtime,pch_defines,system_headers
         ccache -M 4G
         echo "CCACHE_DIR=$GITHUB_WORKSPACE/ccache" >> $GITHUB_ENV
 
