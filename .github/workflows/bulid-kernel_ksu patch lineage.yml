@@ -102,10 +102,10 @@ jobs:
       id: ccache-cache
       with:
         path: ccache
-        key: ccache-${{ env.KERNEL_SOURCE }}-${{ env.KERNEL_SOURCE_BRANCH }}-${{ env.DEVICE }}
+        key: ccache-${{ env.KERNEL_SOURCE_BRANCH }}-${{ env.DEVICE }}-${{ env.AOSP_CLANG_VERSION }}
         restore-keys: |
-          ccache-${{ env.KERNEL_SOURCE }}-${{ env.KERNEL_SOURCE_BRANCH }}-
-          ccache-${{ env.KERNEL_SOURCE }}-
+          ccache-${{ env.KERNEL_SOURCE_BRANCH }}-${{ env.DEVICE }}-
+          ccache-${{ env.KERNEL_SOURCE_BRANCH }}-
           ccache-
 
     - name: Cache Clang Toolchain
