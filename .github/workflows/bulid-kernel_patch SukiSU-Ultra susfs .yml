@@ -10,7 +10,7 @@ on:
       KERNEL_SOURCE_BRANCH:
         description: 'Branch'
         required: true
-        default: 'qcom_rekernel'
+        default: 'lineage-22.2-gkimillet'
       KERNEL_DEFCONFIG:
         description: 'Defconfig'
         required: true
@@ -28,6 +28,11 @@ on:
       #   description: 'Personal access token'
       #   required: true
       #   default: ''
+      ADD_PATH_UMOUNT:
+        description: 'Add `path_umount` for KernelSU'
+        required: true
+        default: true
+        type: boolean
       ENABLE_KERNELSU:
         description: 'Use KernelSU'
         required: true
@@ -39,14 +44,9 @@ on:
         default: true
         type: boolean
       KSU_BRANCH:
-        description: 'SukiSU-Ultra BRANCH'
+        description: 'SukiSU-Ultra BRANCH (Default: susfs-main. If SUSFS disabled, auto-switches to nongki)'
         required: true
         default: 'susfs-main'
-      ADD_PATH_UMOUNT:
-        description: 'Add `path_umount` for KernelSU'
-        required: true
-        default: true
-        type: boolean
       ENABLE_KPM:
         description: 'KPM Support'
         required: true
@@ -159,13 +159,13 @@ jobs:
     - name: Apply SUSFS Patch For Kernel
       if: env.ENABLE_SUSFS == 'true'
       run: |
-        wget -q https://github.com/sakana164/kernel_xiaomi_sm8250/commit/f1f659b40d11ef10f5568a27731c219b9138937e.patch -O susfs-main-patch.patch
-        wget -q https://github.com/sakana164/kernel_xiaomi_sm8250/commit/7a26de1b77c01ba5b7cf97a800ccc7f540999884.patch -O susfs-patch-1.patch
+        wget -q https://github.com/sakana164/kernel_xiaomi_sm8250/commit/e648d9f4de08f68c8fabb3703cc43f68adda67c7.patch -O susfs-1.5.5-patch.patch
+        wget -q https://github.com/sakana164/kernel_xiaomi_sm8250/commit/8107a92965a91c2664baf3e9d15dd16fb7d071d7.patch -O susfs-2.0-patch.patch
         cd kernel-source
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
-        git am ../susfs-main-patch.patch
-        git am ../susfs-patch-1.patch
+        git am ../susfs-1.5.5-patch.patch
+        git am ../susfs-2.0-patch.patch
         echo "[+] Susfs patch for kernel setup done."
 
     - name: Setup KernelSU
@@ -174,24 +174,32 @@ jobs:
         cd kernel-source
         git config --global user.email "76257039+sakana164@users.noreply.github.com"
         git config --global user.name "sakana164"
-        git clone https://github.com/SukiSU-Ultra/SukiSU_patch.git
-        patch -p1 --no-backup-if-mismatch < SukiSU_patch/4.19/ksu_hooks_sukisu_4.19.patch
-        echo "CONFIG_KSU=y" kernel-source/KernelSU>> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-        echo "CONFIG_KSU_MANUAL_HOOK=y" kernel-source/KernelSU>> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-        if [ "${{ env.ENABLE_SUSFS }}" = "true" ]; then
-          echo "KSU_BRANCH=susfs-dev" >> $GITHUB_ENV
-        else
+        echo "CONFIG_KSU=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        BRANCH="${{ env.KSU_BRANCH }}"
+        if [ "${{ env.ENABLE_SUSFS }}" = "false" ] && [ "$BRANCH" = "susfs-main" ]; then
+          echo "SUSFS is disabled but default 'susfs-main' branch was selected."
+          echo "Auto-switching to 'nongki' branch."
+          BRANCH="nongki"
           echo "KSU_BRANCH=nongki" >> $GITHUB_ENV
+          echo "CONFIG_KSU_MANUAL_HOOK=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         fi
-        curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s ${{ env.KSU_BRANCH }}
+        curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s $BRANCH
         if [ ${{ env.ENABLE_KPM }} = true ]; then
           echo "CONFIG_KPM=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         fi
         if [ ${{ env.ADD_PATH_UMOUNT }} = true ]; then
           git am ../patch/KernelSU-path_umount.patch
         fi
-        git submodule add -b ${{ env.KSU_BRANCH }} https://github.com/ShirkNeko/SukiSU-Ultra.git KernelSU
-        git submodule add https://github.com/ShirkNeko/SukiSU_patch.git SukiSU_patch
+        if [ "${{ env.ENABLE_SUSFS }}" = "true" ]; then
+          cp ../patch/susfs_inline_hook_patches.sh .
+          chmod +x susfs_inline_hook_patches.sh
+          bash susfs_inline_hook_patches.sh
+          rm -f susfs_inline_hook_patches.sh
+        else
+          git clone https://github.com/SukiSU-Ultra/SukiSU_patch.git
+          patch -p1 --no-backup-if-mismatch < SukiSU_patch/4.19/ksu_hooks_sukisu_4.19.patch
+          rm -rf SukiSU_patch
+        fi
         echo "[+] KernelSU setup done."
         
     - name: Add SUSFS Configuration
@@ -214,7 +222,8 @@ jobs:
         echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-        echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        echo "# CONFIG_KSU_SUSFS_SUS_SU is not set" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
+        echo "CONFIG_KSU_SUSFS_SUS_MAP=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         
         echo "[+] Susfs Configuration Add."
 
@@ -261,12 +270,12 @@ jobs:
         repository: sakana164/AnyKernel3
         path: kernel-source/AnyKernel3
        
-    - name: KPM Patching Image Files (KPM 修补 Image 文件)
+    - name: KPM Patching Image Files
       run: |
         if [ ${{ env.ENABLE_KPM }} = true ]; then
           echo "正在修补 Image 文件..."
           cd kernel-source/out/arch/arm64/boot/
-          curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU_patch/refs/heads/main/kpm/patch_linux" -o patch
+          curl -LSs "https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch/releases/download/0.12.2/patch_linux" -o patch
           chmod 777 patch
           ./patch
           if [ $? -eq 0 ]; then
