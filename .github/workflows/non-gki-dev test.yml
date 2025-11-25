@@ -40,14 +40,14 @@ on:
       KERNELSU_BRANCH:
         description: 'KernelSU BRANCH'
         required: true
-        default: 'nongki-refactor'
+        default: 'nongki-Meta'
       ADD_PATH_UMOUNT:
         description: 'Add `path_umount` for KernelSU'
         required: true
         default: true
         type: boolean
       ENABLE_KERNELSU_DEBUG:
-        description: 'Use KernelSU Debug and KPROBES'
+        description: 'Use KernelSU Debug'
         required: true
         default: false
         type: boolean
@@ -163,14 +163,14 @@ jobs:
         git config --global user.name "sakana164"
         echo "CONFIG_KSU=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         git am ../patch/KernelSU_Hook.patch
-        curl -LSs "https://raw.githubusercontent.com/sakana164/KernelSU/non-gki/kernel/setup.sh" | bash -s ${{ env.KERNELSU_BRANCH }}
+        curl -LSs "https://raw.githubusercontent.com/sakana164/KernelSU/nongki-Meta/kernel/setup.sh" | bash -s ${{ env.KERNELSU_BRANCH }}
         if [ ${{ env.ENABLE_KERNELSU_DEBUG }} = true ]; then
           echo "CONFIG_KSU_DEBUG=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-          echo "CONFIG_KPROBES=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         fi
         if [ ${{ env.ADD_PATH_UMOUNT }} = true ]; then
           git am ../patch/KernelSU-path_umount.patch
         fi
+        git submodule add -b ${{ env.KERNELSU_BRANCH }} https://github.com/sakana164/KernelSU.git KernelSU
         echo "[+] KernelSU setup done."
 
     - name: Make working directory clean to avoid dirty
