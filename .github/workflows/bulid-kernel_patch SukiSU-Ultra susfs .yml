@@ -160,7 +160,7 @@ jobs:
       if: env.ENABLE_SUSFS == 'true'
       run: |
         wget -q https://github.com/sakana164/kernel_xiaomi_sm8250/commit/e648d9f4de08f68c8fabb3703cc43f68adda67c7.patch -O susfs-1.5.5-patch.patch
-        wget -q https://github.com/sakana164/kernel_xiaomi_sm8250/commit/8107a92965a91c2664baf3e9d15dd16fb7d071d7.patch -O susfs-2.0-patch.patch
+        wget -q https://github.com/sakana164/kernel_xiaomi_sm8250/commit/2533e4eb8533e115f84cf1f483020e7e316f444b.patch -O susfs-2.0-patch.patch
         cd kernel-source
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
