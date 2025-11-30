@@ -161,16 +161,16 @@ jobs:
         cd kernel-source
         git config --global user.email "76257039+sakana164@users.noreply.github.com"
         git config --global user.name "sakana164"
-        git am ../patch/KernelSU.patch
+        git am ../patch/KernelSU_Hook.patch
         echo "CONFIG_KSU=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-        curl -LSs "https://raw.githubusercontent.com/sakana164/KernelSU/non-gki/kernel/setup.sh" | bash -s non-gki
+        curl -LSs "https://raw.githubusercontent.com/sakana164/KernelSU/nongki-Meta/kernel/setup.sh" | bash -s nongki-Meta
         if [ ${{ env.ENABLE_KERNELSU_DEBUG }} = true ]; then
           echo "CONFIG_KSU_DEBUG=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         fi
         if [ ${{ env.ADD_PATH_UMOUNT }} = true ]; then
           git am ../patch/KernelSU-path_umount.patch
         fi
-        git submodule add https://github.com/sakana164/KernelSU.git KernelSU
+        git submodule add -b nongki-Meta https://github.com/sakana164/KernelSU.git KernelSU
         echo "[+] KernelSU setup done."
 
     - name: Make working directory clean to avoid dirty
