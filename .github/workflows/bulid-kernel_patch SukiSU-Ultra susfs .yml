@@ -43,9 +43,9 @@ on:
         default: true
         type: boolean
       KSU_BRANCH:
-        description: 'SukiSU-Ultra BRANCH (Default: susfs-main. If SUSFS disabled, auto-switches to nongki)'
+        description: 'SukiSU-Ultra BRANCH'
         required: true
-        default: 'susfs-main'
+        default: 'builtin'
       ENABLE_KPM:
         description: 'KPM Support'
         required: true
@@ -181,14 +181,11 @@ jobs:
         git config --global user.name "sakana164"
         echo "CONFIG_KSU=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         BRANCH="${{ env.KSU_BRANCH }}"
-        if [ "${{ env.ENABLE_SUSFS }}" = "false" ] && [ "$BRANCH" = "susfs-main" ]; then
-          echo "SUSFS is disabled but default 'susfs-main' branch was selected."
-          echo "Auto-switching to 'nongki' branch."
-          BRANCH="nongki"
-          echo "KSU_BRANCH=nongki" >> $GITHUB_ENV
+        if [ "${{ env.ENABLE_SUSFS }}" = "false" ] ]; then
+          echo "CONFIG_KSU_SUSFS=n" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
           echo "CONFIG_KSU_MANUAL_HOOK=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         fi
-        curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s $BRANCH
+        curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s ${{ env.KSU_BRANCH }}
         if [ ${{ env.ENABLE_KPM }} = true ]; then
           echo "CONFIG_KPM=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         fi
