@@ -15,10 +15,6 @@ on:
         description: 'Defconfig'
         required: true
         default: 'alioth_defconfig'
-      AOSP_CLANG_BRANCH:
-        description: 'AOSP Clang Branch'
-        required: true
-        default: 'main'
       AOSP_CLANG_VERSION:
         description: 'AOSP Clang Version'
         required: true
@@ -28,6 +24,10 @@ on:
         required: true
         default: false
         type: boolean
+      CUSTOM_CLANG_URL:
+        description: 'Custom Clang URL'
+        required: true
+        default: 'https://raw.githubusercontent.com/ZyCromerZ/Clang/main/Clang-15-link.txt'
       # PERSONAL_TOKEN:
       #   description: 'Personal access token'
       #   required: true
@@ -62,9 +62,9 @@ jobs:
         echo "KERNEL_SOURCE=${{ github.event.inputs.KERNEL_SOURCE }}" >> $GITHUB_ENV
         echo "KERNEL_SOURCE_BRANCH=${{ github.event.inputs.KERNEL_SOURCE_BRANCH }}" >> $GITHUB_ENV
         echo "KERNEL_DEFCONFIG=${{ github.event.inputs.KERNEL_DEFCONFIG }}" >> $GITHUB_ENV
-        echo "AOSP_CLANG_BRANCH=${{ github.event.inputs.AOSP_CLANG_BRANCH }}" >> $GITHUB_ENV
         echo "AOSP_CLANG_VERSION=${{ github.event.inputs.AOSP_CLANG_VERSION }}" >> $GITHUB_ENV
         echo "USE_CUSTOM_CLANG=${{ github.event.inputs.USE_CUSTOM_CLANG }}" >> $GITHUB_ENV
+        echo "CUSTOM_CLANG_URL=${{ github.event.inputs.CUSTOM_CLANG_URL }}" >> $GITHUB_ENV
         # echo "PERSONAL_TOKEN=${{ github.event.inputs.PERSONAL_TOKEN }}" >> $GITHUB_ENV
         echo "ENABLE_KERNELSU=${{ github.event.inputs.ENABLE_KERNELSU }}" >> $GITHUB_ENV
         echo "KERNELSU_BRANCH=${{ github.event.inputs.KERNELSU_BRANCH }}" >> $GITHUB_ENV
@@ -96,13 +96,19 @@ jobs:
         ccache -o sloppiness=file_macro,locale,time_macros,include_file_ctime,include_file_mtime,pch_defines,system_headers
         ccache -M 4G
         echo "CCACHE_DIR=$GITHUB_WORKSPACE/ccache" >> $GITHUB_ENV
+        if [ "${{ github.event.inputs.USE_CUSTOM_CLANG }}" = "true" ]; then
+          CUSTOM_ID=$(basename "$(curl -s '${{ env.CUSTOM_CLANG_URL }}')" .tar.gz)
+          echo "CLANG_ID=${CUSTOM_ID}" >> $GITHUB_ENV
+        else
+          echo "CLANG_ID=${{ github.event.inputs.AOSP_CLANG_VERSION }}" >> $GITHUB_ENV
+        fi
 
     - name: Restore Ccache
       uses: actions/cache@v4
       id: ccache-cache
       with:
         path: ccache
-        key: ccache-${{ env.KERNEL_SOURCE_BRANCH }}-${{ env.DEVICE }}-${{ env.AOSP_CLANG_VERSION }}
+        key: ccache-${{ env.KERNEL_SOURCE_BRANCH }}-${{ env.DEVICE }}-${{ env.CLANG_ID }}
         restore-keys: |
           ccache-${{ env.KERNEL_SOURCE_BRANCH }}-${{ env.DEVICE }}-
           ccache-${{ env.KERNEL_SOURCE_BRANCH }}-
@@ -121,12 +127,12 @@ jobs:
     - name: Download AOSP Clang Toolchain
       if: env.USE_CUSTOM_CLANG == 'false' && steps.cache-clang.outputs.cache-hit != 'true'
       run: |
-        wget -q https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/${{ env.AOSP_CLANG_BRANCH }}/clang-${{ env.AOSP_CLANG_VERSION }}.tar.gz -O clang.tar.gz
+        wget -q https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-${{ env.AOSP_CLANG_VERSION }}.tar.gz -O clang.tar.gz
   
     - name: Download Custom Clang Toolchain
       if: env.USE_CUSTOM_CLANG == 'true'
       run: |
-        wget -q $(curl 'https://raw.githubusercontent.com/ZyCromerZ/Clang/main/Clang-main-link.txt') -O clang.tar.gz
+        wget -q $(curl -s '${{ env.CUSTOM_CLANG_URL }}') -O clang.tar.gz
   
     - name: Extract Clang Toolchain
       if: env.USE_CUSTOM_CLANG == 'true' || steps.cache-clang.outputs.cache-hit != 'true'
