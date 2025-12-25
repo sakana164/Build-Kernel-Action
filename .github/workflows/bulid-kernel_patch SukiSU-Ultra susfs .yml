@@ -293,6 +293,7 @@ jobs:
         fi
 
     - name: Patch Boot
+      if: env.DEVICE == 'alioth'
       run: |
         mkdir IMG
         chmod +x ./magiskboot
@@ -364,6 +365,7 @@ jobs:
         compression-level: 9
 
     - name: Upload IMG Package
+      if: env.DEVICE == 'alioth'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.KERNEL_SOURCE_BRANCH }}-IMG-${{ env.DEVICE }}${{ env.ENABLE_KERNELSU }}-${{ env.ENABLE_SUSFS }}-${{ env.ENABLE_KPM }}-${{ env.BUILD_TIME }}
