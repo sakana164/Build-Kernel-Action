@@ -167,12 +167,10 @@ jobs:
     - name: Apply SUSFS Patch For Kernel
       if: env.ENABLE_SUSFS == 'true'
       run: |
-        wget -q https://github.com/sakana164/kernel_xiaomi_sm8250/commit/e648d9f4de08f68c8fabb3703cc43f68adda67c7.patch -O susfs-1.5.5-patch.patch
-        wget -q https://github.com/sakana164/kernel_xiaomi_sm8250/commit/2533e4eb8533e115f84cf1f483020e7e316f444b.patch -O susfs-2.0-patch.patch
+        wget -q https://github.com/sakana164/kernel_xiaomi_sm8250/commit/7e3896f5f334959b990cb19b3bad4782fd654aac.patch -O susfs-2.0-patch.patch
         cd kernel-source
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
-        git am ../susfs-1.5.5-patch.patch
         git am ../susfs-2.0-patch.patch
         echo "[+] Susfs patch for kernel setup done."
 
@@ -210,20 +208,15 @@ jobs:
 
         cd kernel-source
         echo "CONFIG_KSU_SUSFS=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-        echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-        echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-        echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-        echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-        echo "# CONFIG_KSU_SUSFS_SUS_SU is not set" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         echo "CONFIG_KSU_SUSFS_SUS_MAP=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         
         echo "[+] Susfs Configuration Add."
