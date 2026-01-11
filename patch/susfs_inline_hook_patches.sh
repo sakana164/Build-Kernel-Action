@@ -103,8 +103,16 @@ for i in "${patch_files[@]}"; do
     ## stat.c
     fs/stat.c)
         sed -i '/#include <asm\/uaccess.h>/i #ifdef CONFIG_KSU_SUSFS\n#include <linux\/susfs_def.h>\n#endif' fs/stat.c
-        sed -i '/int vfs_statx(int dfd, const char __user \*filename, int flags,/i #ifdef CONFIG_KSU_SUSFS\nextern bool ksu_su_compat_enabled __read_mostly;\nextern bool __ksu_is_allow_uid_for_current(uid_t uid);\nextern int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags);\n#endif' fs/stat.c
-        sed -i '/unsigned int lookup_flags = LOOKUP_FOLLOW | LOOKUP_AUTOMOUNT;/a #ifdef CONFIG_KSU_SUSFS\n\tif (likely(susfs_is_current_proc_umounted()) || !ksu_su_compat_enabled) {\n\t\tgoto orig_flow;\n\t}\n\n\tif (unlikely(__ksu_is_allow_uid_for_current(current_uid().val))) {\n\t\tksu_handle_stat(&dfd, &filename, &flags);\n\t}\norig_flow:\n#endif' fs/stat.c
+        if grep -q "vfs_statx" "fs/stat.c"; then
+            echo "[+] Checked vfs_statx existed in Kernel!"
+
+            sed -i '/int vfs_statx(int dfd, const char __user \*filename, int flags,/i #ifdef CONFIG_KSU_SUSFS\nextern bool ksu_su_compat_enabled __read_mostly;\nextern bool __ksu_is_allow_uid_for_current(uid_t uid);\nextern int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags);\n#endif' fs/stat.c
+            sed -i '/unsigned int lookup_flags = LOOKUP_FOLLOW | LOOKUP_AUTOMOUNT;/a #ifdef CONFIG_KSU_SUSFS\n\tif (likely(susfs_is_current_proc_umounted()) || !ksu_su_compat_enabled) {\n\t\tgoto orig_flow;\n\t}\n\n\tif (unlikely(__ksu_is_allow_uid_for_current(current_uid().val))) {\n\t\tksu_handle_stat(&dfd, &filename, &flags);\n\t}\norig_flow:\n#endif' fs/stat.c
+        else
+            sed -i '/EXPORT_SYMBOL(vfs_fstat);/i #ifdef CONFIG_KSU_SUSFS\nextern bool ksu_su_compat_enabled __read_mostly;\nextern bool __ksu_is_allow_uid_for_current(uid_t uid);\nextern int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags);\n#endif\n' fs/stat.c
+            sed -i '/unsigned int lookup_flags = 0;/a #ifdef CONFIG_KSU_SUSFS\n\tif (likely(susfs_is_current_proc_umounted()) || !ksu_su_compat_enabled) {\n\t\tgoto orig_flow;\n\t}\n\n\tif (unlikely(__ksu_is_allow_uid_for_current(current_uid().val))) {\n\t\tksu_handle_stat(&dfd, &filename, &flags);\n\t}\norig_flow:\n#endif' fs/stat.c
+        fi
+
 
         if grep -q "ksu_handle_stat" "fs/stat.c"; then
             echo "[+] fs/stat.c Patched!"

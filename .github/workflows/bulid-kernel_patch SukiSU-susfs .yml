@@ -1,4 +1,4 @@
-name: Build Kernel_diff patch SukiSU-Ultra susfs
+name: Build Kernel_diff patch SukiSU susfs
 
 on:
   workflow_dispatch:
@@ -195,10 +195,9 @@ jobs:
           bash susfs_inline_hook_patches.sh
           rm -f susfs_inline_hook_patches.sh
         else
-          git clone https://github.com/SukiSU-Ultra/SukiSU_patch.git
-          patch -p1 --no-backup-if-mismatch < SukiSU_patch/4.19/ksu_hooks_sukisu_4.19.patch
-          rm -rf SukiSU_patch
+          git am ../patch/KernelSU-Mini-Hook.patch
         fi
+        git submodule add -b ${{ env.KSU_BRANCH }} https://github.com/${{ env.KSU_SOURCE }}/KernelSU.git KernelSU
         echo "[+] KernelSU setup done."
         
     - name: Add SUSFS Configuration
