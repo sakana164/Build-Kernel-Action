@@ -1,4 +1,4 @@
-name: Build Kernel_diff patch SukiSU-Ultra susfs
+name: Build Kernel_diff patch SukiSU susfs
 
 on:
   workflow_dispatch:
@@ -180,12 +180,12 @@ jobs:
         git config --global user.email "76257039+sakana164@users.noreply.github.com"
         git config --global user.name "sakana164"
         echo "CONFIG_KSU=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
-        if [ "${{ env.ENABLE_SUSFS }}" = "false" ] ]; then
+        if [ "${{ env.ENABLE_SUSFS }}" = "false" ]; then
           echo "CONFIG_KSU_SUSFS=n" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
           echo "CONFIG_KSU_MANUAL_HOOK=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         fi
         curl -LSs "https://raw.githubusercontent.com/${{ env.KSU_SOURCE }}/${{ env.KSU_SOURCE }}/main/kernel/setup.sh" | bash -s ${{ env.KSU_BRANCH }}
-        if [ ${{ env.ENABLE_KPM }} = true ]; then
+        if [ "${{ env.ENABLE_KPM }}" = "true" ]; then
           echo "CONFIG_KPM=y" >> arch/arm64/configs/${{ env.KERNEL_DEFCONFIG }}
         fi
         git am ../patch/KernelSU-path_umount.patch
@@ -195,10 +195,9 @@ jobs:
           bash susfs_inline_hook_patches.sh
           rm -f susfs_inline_hook_patches.sh
         else
-          git clone https://github.com/SukiSU-Ultra/SukiSU_patch.git
-          patch -p1 --no-backup-if-mismatch < SukiSU_patch/4.19/ksu_hooks_sukisu_4.19.patch
-          rm -rf SukiSU_patch
+          git am ../patch/KernelSU-Mini-Hook.patch
         fi
+        git submodule add -b ${{ env.KSU_BRANCH }} https://github.com/${{ env.KSU_SOURCE }}/KernelSU.git KernelSU
         echo "[+] KernelSU setup done."
         
     - name: Add SUSFS Configuration
@@ -266,7 +265,7 @@ jobs:
        
     - name: KPM Patching Image Files
       run: |
-        if [ ${{ env.ENABLE_KPM }} = true ]; then
+        if [ "${{ env.ENABLE_KPM }}" = "true" ]; then
           echo "正在修补 Image 文件..."
           cd kernel-source/out/arch/arm64/boot/
           curl -LSs "https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch/releases/download/0.12.2/patch_linux" -o patch
@@ -336,7 +335,7 @@ jobs:
         else
           echo "ENABLE_SUSFS=" >> $GITHUB_ENV
         fi
-        if [ ${{ env.ENABLE_KPM }} = true ]; then
+        if [ "${{ env.ENABLE_KPM }}" = "true" ]; then
           echo "ENABLE_KPM=KPM" >> $GITHUB_ENV
         else
           echo "ENABLE_KPM=" >> $GITHUB_ENV

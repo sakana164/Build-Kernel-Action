@@ -1,0 +1,138 @@
+From b6a8bc89236e59a11fee7ed47b728608854b15e5 Mon Sep 17 00:00:00 2001
+From: sakana164 <76257039+sakana164@users.noreply.github.com>
+Date: Sun, 11 Jan 2026 21:34:28 +0800
+Subject: [PATCH] kernel: Add KernelSU Mini Hook
+
+https://resukisu.github.io/zh_CN/guide/manual-hooks.html
+
+Signed-off-by: sakana164 <76257039+sakana164@users.noreply.github.com>
+---
+ fs/exec.c       | 12 ++++++++++++
+ fs/open.c       |  9 +++++++++
+ fs/stat.c       | 12 ++++++++++++
+ kernel/reboot.c |  7 +++++++
+ 4 files changed, 40 insertions(+)
+
+diff --git a/fs/exec.c b/fs/exec.c
+index eef84ebcac53..21d5adcb38d2 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -1911,12 +1911,21 @@ int do_execve_file(struct file *file, void *__argv, void *__envp)
+ 	return __do_execve_file(AT_FDCWD, NULL, argv, envp, 0, file);
+ }
+ 
++#ifdef CONFIG_KSU
++__attribute__((hot))
++extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr,
++				void *argv, void *envp, int *flags);
++#endif
++
+ int do_execve(struct filename *filename,
+ 	const char __user *const __user *__argv,
+ 	const char __user *const __user *__envp)
+ {
+ 	struct user_arg_ptr argv = { .ptr.native = __argv };
+ 	struct user_arg_ptr envp = { .ptr.native = __envp };
++#ifdef CONFIG_KSU
++	ksu_handle_execveat((int *)AT_FDCWD, &filename, &argv, &envp, 0);
++#endif
+ 	return do_execveat_common(AT_FDCWD, filename, argv, envp, 0);
+ }
+ 
+@@ -1944,6 +1953,9 @@ static int compat_do_execve(struct filename *filename,
+ 		.is_compat = true,
+ 		.ptr.compat = __envp,
+ 	};
++#ifdef CONFIG_KSU // 32-bit ksud and 32-on-64 support
++	ksu_handle_execveat((int *)AT_FDCWD, &filename, &argv, &envp, 0);
++#endif
+ 	return do_execveat_common(AT_FDCWD, filename, argv, envp, 0);
+ }
+ 
+diff --git a/fs/open.c b/fs/open.c
+index dbb91f0101bb..fbb5400deb47 100644
+--- a/fs/open.c
++++ b/fs/open.c
+@@ -451,8 +451,17 @@ long do_faccessat(int dfd, const char __user *filename, int mode)
+ 	return res;
+ }
+ 
++#ifdef CONFIG_KSU
++__attribute__((hot))
++extern int ksu_handle_faccessat(int *dfd, const char __user **filename_user,
++				int *mode, int *flags);
++#endif
++
+ SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
+ {
++#ifdef CONFIG_KSU
++	ksu_handle_faccessat(&dfd, &filename, &mode, NULL);
++#endif
+ 	return do_faccessat(dfd, filename, mode);
+ }
+ 
+diff --git a/fs/stat.c b/fs/stat.c
+index 376543199b5a..36c8f0cd6311 100644
+--- a/fs/stat.c
++++ b/fs/stat.c
+@@ -353,6 +353,12 @@ SYSCALL_DEFINE2(newlstat, const char __user *, filename,
+ 	return cp_new_stat(&stat, statbuf);
+ }
+ 
++#ifdef CONFIG_KSU
++__attribute__((hot))
++extern int ksu_handle_stat(int *dfd, const char __user **filename_user,
++				int *flags);
++#endif
++
+ #if !defined(__ARCH_WANT_STAT64) || defined(__ARCH_WANT_SYS_NEWFSTATAT)
+ SYSCALL_DEFINE4(newfstatat, int, dfd, const char __user *, filename,
+ 		struct stat __user *, statbuf, int, flag)
+@@ -360,6 +366,9 @@ SYSCALL_DEFINE4(newfstatat, int, dfd, const char __user *, filename,
+ 	struct kstat stat;
+ 	int error;
+ 
++#ifdef CONFIG_KSU
++	ksu_handle_stat(&dfd, &filename, &flag);
++#endif
+ 	error = vfs_fstatat(dfd, filename, &stat, flag);
+ 	if (error)
+ 		return error;
+@@ -510,6 +519,9 @@ SYSCALL_DEFINE4(fstatat64, int, dfd, const char __user *, filename,
+ 	struct kstat stat;
+ 	int error;
+ 
++#ifdef CONFIG_KSU // 32-bit su
++	ksu_handle_stat(&dfd, &filename, &flag);
++#endif
+ 	error = vfs_fstatat(dfd, filename, &stat, flag);
+ 	if (error)
+ 		return error;
+diff --git a/kernel/reboot.c b/kernel/reboot.c
+index 19f89c07460a..9af1b9d8b46d 100644
+--- a/kernel/reboot.c
++++ b/kernel/reboot.c
+@@ -305,6 +305,10 @@ DEFINE_MUTEX(system_transition_mutex);
+  *
+  * reboot doesn't sync: do that yourself before calling this.
+  */
++#ifdef CONFIG_KSU
++extern int ksu_handle_sys_reboot(int magic1, int magic2, unsigned int cmd, void __user **arg);
++#endif
++
+ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
+ 		void __user *, arg)
+ {
+@@ -312,6 +316,9 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
+ 	char buffer[256];
+ 	int ret = 0;
+ 
++#ifdef CONFIG_KSU
++	ksu_handle_sys_reboot(magic1, magic2, cmd, &arg);
++#endif
+ 	/* We only trust the superuser with rebooting the system. */
+ 	if (!ns_capable(pid_ns->user_ns, CAP_SYS_BOOT))
+ 		return -EPERM;
+-- 
+2.48.1
+
