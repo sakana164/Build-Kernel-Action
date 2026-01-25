@@ -1,11 +1,13 @@
-From ec8d986e4cce7cfa89a594fb68849f7d740d36b6 Mon Sep 17 00:00:00 2001
+From 29d095973bc775164adfbb1e7ea38bc0d8cc6e79 Mon Sep 17 00:00:00 2001
 From: sakana164 <76257039+sakana164@users.noreply.github.com>
-Date: Sat, 17 Jan 2026 02:06:31 +0800
-Subject: [PATCH] kernel: Add KernelSU Hook 
+Date: Sun, 25 Jan 2026 14:46:24 +0800
+Subject: [PATCH] kernel: Add KernelSU Hook
+
 scope-minimized manual hooks v1.6
 
 bool ksu_init_rc_hook
-Add sys_newfstat ret_hook
+add sys_newfstat ret_hook
+update newfstat ret_hook
 
 Signed-off-by: sakana164 <76257039+sakana164@users.noreply.github.com>
 ---
@@ -13,9 +15,9 @@ Signed-off-by: sakana164 <76257039+sakana164@users.noreply.github.com>
  fs/exec.c             | 12 ++++++++++++
  fs/open.c             |  9 +++++++++
  fs/read_write.c       | 10 ++++++++++
- fs/stat.c             | 21 +++++++++++++++++++++
+ fs/stat.c             | 28 ++++++++++++++++++++++++++++
  kernel/reboot.c       |  7 +++++++
- 6 files changed, 70 insertions(+)
+ 6 files changed, 77 insertions(+)
 
 diff --git a/drivers/input/input.c b/drivers/input/input.c
 index 70ffffea3e58..7953f1c40b66 100644
@@ -81,7 +83,7 @@ index eef84ebcac53..21d5adcb38d2 100644
  }
  
 diff --git a/fs/open.c b/fs/open.c
-index dbb91f0101bb..65f91d5dbe53 100644
+index 13d70db567e0..55f82ec3a7b3 100644
 --- a/fs/open.c
 +++ b/fs/open.c
 @@ -451,8 +451,17 @@ long do_faccessat(int dfd, const char __user *filename, int mode)
@@ -126,7 +128,7 @@ index ec2d20ddd766..9d8f6dfaf5f2 100644
  }
  
 diff --git a/fs/stat.c b/fs/stat.c
-index 376543199b5a..4fe1231a6aa4 100644
+index 376543199b5a..b4ed2904b46d 100644
 --- a/fs/stat.c
 +++ b/fs/stat.c
 @@ -353,6 +353,12 @@ SYSCALL_DEFINE2(newlstat, const char __user *, filename,
@@ -152,19 +154,22 @@ index 376543199b5a..4fe1231a6aa4 100644
  	error = vfs_fstatat(dfd, filename, &stat, flag);
  	if (error)
  		return error;
-@@ -367,6 +376,11 @@ SYSCALL_DEFINE4(newfstatat, int, dfd, const char __user *, filename,
+@@ -367,6 +376,14 @@ SYSCALL_DEFINE4(newfstatat, int, dfd, const char __user *, filename,
  }
  #endif
  
 +#ifdef CONFIG_KSU
 +extern bool ksu_init_rc_hook __read_mostly;
-+extern __attribute__((cold)) void ksu_handle_newfstat_ret(unsigned int *fd, struct stat __user **statbuf_ptr);
++extern void ksu_handle_newfstat_ret(unsigned int *fd, struct stat __user **statbuf_ptr);
++#if defined(__ARCH_WANT_STAT64) || defined(__ARCH_WANT_COMPAT_STAT64)
++extern void ksu_handle_fstat64_ret(unsigned long *fd, struct stat64 __user **statbuf_ptr); // optional
++#endif
 +#endif
 +
  SYSCALL_DEFINE2(newfstat, unsigned int, fd, struct stat __user *, statbuf)
  {
  	struct kstat stat;
-@@ -375,6 +389,10 @@ SYSCALL_DEFINE2(newfstat, unsigned int, fd, struct stat __user *, statbuf)
+@@ -375,6 +392,10 @@ SYSCALL_DEFINE2(newfstat, unsigned int, fd, struct stat __user *, statbuf)
  	if (!error)
  		error = cp_new_stat(&stat, statbuf);
  
@@ -175,7 +180,18 @@ index 376543199b5a..4fe1231a6aa4 100644
  	return error;
  }
  
-@@ -510,6 +528,9 @@ SYSCALL_DEFINE4(fstatat64, int, dfd, const char __user *, filename,
+@@ -501,6 +522,10 @@ SYSCALL_DEFINE2(fstat64, unsigned long, fd, struct stat64 __user *, statbuf)
+ 	if (!error)
+ 		error = cp_new_stat64(&stat, statbuf);
+ 
++#ifdef CONFIG_KSU // for 32-bit
++	if (unlikely(ksu_init_rc_hook))
++		ksu_handle_fstat64_ret(&fd, &statbuf);
++#endif
+ 	return error;
+ }
+ 
+@@ -510,6 +535,9 @@ SYSCALL_DEFINE4(fstatat64, int, dfd, const char __user *, filename,
  	struct kstat stat;
  	int error;
  
