@@ -56,7 +56,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Setup Configuration
       run: |
         echo "KERNEL_SOURCE=${{ github.event.inputs.KERNEL_SOURCE }}" >> $GITHUB_ENV
@@ -104,7 +104,7 @@ jobs:
         fi
 
     - name: Restore Ccache
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       id: ccache-cache
       with:
         path: ccache
@@ -117,7 +117,7 @@ jobs:
     - name: Cache Clang Toolchain
       if: env.USE_CUSTOM_CLANG != 'true'
       id: cache-clang
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: clang
         key: clang-${{ env.AOSP_CLANG_VERSION }}
@@ -141,7 +141,7 @@ jobs:
         tar -C clang/ -zxf clang.tar.gz
 
     - name: Checkout Kernel
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         # token: ${{env.PERSONAL_TOKEN}}
         repository: ${{ env.KERNEL_SOURCE }}
@@ -216,7 +216,7 @@ jobs:
         ccache -sv
 
     - name: Checkout AnyKernel3
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         # token: ${{env.PERSONAL_TOKEN}}
         repository: sakana164/AnyKernel3
@@ -272,7 +272,7 @@ jobs:
         fi
 
     - name: Upload Kernel AnyKernel3 Package
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ env.KERNEL_SOURCE_BRANCH }}-kernel-${{ env.DEVICE }}${{ env.ENABLE_KERNELSU }}-${{ env.BUILD_TIME }}
         path: |
@@ -286,7 +286,7 @@ jobs:
 
     - name: Upload IMG Package
       if: env.DEVICE == 'alioth'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ env.KERNEL_SOURCE_BRANCH }}-IMG-${{ env.DEVICE }}${{ env.ENABLE_KERNELSU }}-${{ env.BUILD_TIME }}
         path: |
@@ -294,7 +294,7 @@ jobs:
         compression-level: 9
 
     - name: Upload Defconfig
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ env.KERNEL_SOURCE_BRANCH }}-${{ env.KERNEL_DEFCONFIG }}
         path: |
