@@ -51,6 +51,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
     - uses: actions/checkout@v6
     - name: Setup Configuration
@@ -75,11 +77,17 @@ jobs:
 
     - name: Setup Ccache
       run: |
-        CCACHE_VERSION=$(curl -s https://api.github.com/repos/ccache/ccache/releases/latest | grep '"tag_name":' | sed 's/.*"v\([^"]*\)".*/\1/')
-        wget -q https://github.com/ccache/ccache/releases/download/v${CCACHE_VERSION}/ccache-${CCACHE_VERSION}-linux-x86_64.tar.xz
-        tar -xf ccache-${CCACHE_VERSION}-linux-x86_64.tar.xz
-        sudo cp ccache-${CCACHE_VERSION}-linux-x86_64/ccache /usr/local/bin/
-        sudo chmod +x /usr/local/bin/ccache
+        Ccache_URL=$(gh release view --repo ccache/ccache --json assets --jq '
+        .assets[] | select(.name | contains("musl") and contains("linux-x86_64") and endswith(".tar.xz")) | .url' | head -1)
+        if [ -n "$Ccache_URL" ]; then
+          echo "Ccache Download Url: $Ccache_URL"
+          wget -q $Ccache_URL -O ccache.tar.xz
+          tar -xf ccache.tar.xz
+          sudo cp ccache-*/ccache /usr/local/bin/
+          sudo chmod +x /usr/local/bin/ccache
+        else
+          sudo apt install -y ccache
+        fi
         ccache --version
         mkdir -p $GITHUB_WORKSPACE/ccache
         ccache -o compression=true
@@ -223,8 +231,9 @@ jobs:
         mkdir IMG
         chmod +x ./magiskboot
         echo "Getting latest OrangeFox Recovery release..."
-        LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/sakana164/android_device_xiaomi_alioth-OFRP/releases/latest | grep -oP '"browser_download_url": "\K[^"]+\.zip' | head -1)
-        echo "Downloading: $LATEST_RELEASE_URL"
+        LATEST_RELEASE_URL=$(gh release view --repo sakana164/android_device_xiaomi_alioth-OFRP --json assets --jq '
+        .assets[] | select(.name | startswith("OrangeFox") and endswith(".zip")) | .url' | head -1)
+        echo "Recovery Download Url: $LATEST_RELEASE_URL"
         wget "$LATEST_RELEASE_URL" -O ofox-recovery.zip
         if unzip -j ofox-recovery.zip "recovery.img" -d ./ 2>/dev/null; then
             echo "Successfully extracted recovery.img"
