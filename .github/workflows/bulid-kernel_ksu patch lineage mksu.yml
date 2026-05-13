@@ -18,7 +18,7 @@ on:
       AOSP_CLANG_VERSION:
         description: 'AOSP Clang Version'
         required: true
-        default: 'r547379'
+        default: 'r584948'
       USE_CUSTOM_CLANG:
         description: 'Use Custom Clang'
         required: true
@@ -27,7 +27,7 @@ on:
       CUSTOM_CLANG_URL:
         description: 'Custom Clang URL'
         required: true
-        default: 'https://raw.githubusercontent.com/ZyCromerZ/Clang/main/Clang-15-link.txt'
+        default: 'https://raw.githubusercontent.com/ZyCromerZ/Clang/main/Clang-16-link.txt'
       # PERSONAL_TOKEN:
       #   description: 'Personal access token'
       #   required: true
@@ -134,13 +134,11 @@ jobs:
       with:
         path: clang
         key: clang-${{ env.AOSP_CLANG_VERSION }}
-        restore-keys: |
-          clang-
 
     - name: Download AOSP Clang Toolchain
       if: env.USE_CUSTOM_CLANG == 'false' && steps.cache-clang.outputs.cache-hit != 'true'
       run: |
-        wget -q https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-${{ env.AOSP_CLANG_VERSION }}.tar.gz -O clang.tar.gz
+        wget -q https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/mirror-goog-main-llvm-toolchain-source/clang-${{ env.AOSP_CLANG_VERSION }}.tar.gz -O clang.tar.gz
   
     - name: Download Custom Clang Toolchain
       if: env.USE_CUSTOM_CLANG == 'true'
