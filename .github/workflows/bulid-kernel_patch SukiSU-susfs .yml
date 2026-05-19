@@ -18,7 +18,7 @@ on:
       AOSP_CLANG_VERSION:
         description: 'AOSP Clang Version'
         required: true
-        default: 'r584948'
+        default: 'r547379'
       CUSTOM_CLANG_URL:
         description: 'Custom Clang URL'
         required: true
@@ -136,7 +136,7 @@ jobs:
     - name: Download AOSP Clang Toolchain
       if: env.USE_CUSTOM_CLANG == 'false' && steps.cache-clang.outputs.cache-hit != 'true'
       run: |
-        wget -q https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/mirror-goog-main-llvm-toolchain-source/clang-${{ env.AOSP_CLANG_VERSION }}.tar.gz -O clang.tar.gz
+        wget -q https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-${{ env.AOSP_CLANG_VERSION }}.tar.gz -O clang.tar.gz
   
     - name: Download Custom Clang Toolchain
       if: env.USE_CUSTOM_CLANG == 'true'
