@@ -18,11 +18,11 @@ on:
       AOSP_CLANG_BRANCH:
         description: 'AOSP Clang branch'
         required: true
-        default: 'main'
+        default: 'mirror-goog-main-llvm-toolchain-source'
       AOSP_CLANG_VERSION:
         description: 'AOSP Clang version'
         required: true
-        default: 'r547379'
+        default: 'r596125'
       USE_CUSTOM_CLANG:
         description: 'Use Custom Clang'
         required: true
