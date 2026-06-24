@@ -15,10 +15,10 @@ on:
         description: 'Defconfig'
         required: true
         default: 'alioth_defconfig'
-      AOSP_CLANG_VERSION:
-        description: 'AOSP Clang Version'
+      LLVM_VERSION:
+        description: 'LLVM_VERSION'
         required: true
-        default: 'r596125'
+        default: '22.1.8'
       USE_CUSTOM_CLANG:
         description: 'Use Custom Clang'
         required: true
@@ -64,7 +64,7 @@ jobs:
         echo "KERNEL_SOURCE=${{ github.event.inputs.KERNEL_SOURCE }}" >> $GITHUB_ENV
         echo "KERNEL_SOURCE_BRANCH=${{ github.event.inputs.KERNEL_SOURCE_BRANCH }}" >> $GITHUB_ENV
         echo "KERNEL_DEFCONFIG=${{ github.event.inputs.KERNEL_DEFCONFIG }}" >> $GITHUB_ENV
-        echo "AOSP_CLANG_VERSION=${{ github.event.inputs.AOSP_CLANG_VERSION }}" >> $GITHUB_ENV
+        echo "LLVM_VERSION=${{ github.event.inputs.LLVM_VERSION }}" >> $GITHUB_ENV
         echo "USE_CUSTOM_CLANG=${{ github.event.inputs.USE_CUSTOM_CLANG }}" >> $GITHUB_ENV
         echo "CUSTOM_CLANG_URL=${{ github.event.inputs.CUSTOM_CLANG_URL }}" >> $GITHUB_ENV
         # echo "PERSONAL_TOKEN=${{ github.event.inputs.PERSONAL_TOKEN }}" >> $GITHUB_ENV
@@ -108,7 +108,7 @@ jobs:
           CUSTOM_ID=$(basename "$(curl -s '${{ env.CUSTOM_CLANG_URL }}')" .tar.gz)
           echo "CLANG_ID=${CUSTOM_ID}" >> $GITHUB_ENV
         else
-          echo "CLANG_ID=${{ github.event.inputs.AOSP_CLANG_VERSION }}" >> $GITHUB_ENV
+          echo "CLANG_ID=llvm-${{ github.event.inputs.LLVM_VERSION }}" >> $GITHUB_ENV
         fi
 
     - name: Restore Ccache
@@ -128,23 +128,27 @@ jobs:
       uses: actions/cache@v5
       with:
         path: clang
-        key: clang-${{ env.AOSP_CLANG_VERSION }}
+        key: llvm-${{ env.LLVM_VERSION }}
 
-    - name: Download AOSP Clang Toolchain
+    - name: Download Slim LLVM toolchains
       if: env.USE_CUSTOM_CLANG == 'false' && steps.cache-clang.outputs.cache-hit != 'true'
       run: |
-        wget -q https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/mirror-goog-main-llvm-toolchain-source/clang-${{ env.AOSP_CLANG_VERSION }}.tar.gz -O clang.tar.gz
-  
+        wget https://www.kernel.org/pub/tools/llvm/files/llvm-${{ env.LLVM_VERSION }}-x86_64.tar.gz -O llvm.tar.gz
+
     - name: Download Custom Clang Toolchain
       if: env.USE_CUSTOM_CLANG == 'true'
       run: |
-        wget -q $(curl -s '${{ env.CUSTOM_CLANG_URL }}') -O clang.tar.gz
+        wget $(curl -s '${{ env.CUSTOM_CLANG_URL }}') -O clang.tar.gz
   
     - name: Extract Clang Toolchain
       if: env.USE_CUSTOM_CLANG == 'true' || steps.cache-clang.outputs.cache-hit != 'true'
       run: |
         mkdir clang
-        tar -C clang/ -zxf clang.tar.gz
+        if [ ${{ env.USE_CUSTOM_CLANG }} = true ]; then
+          tar -C clang/ -zxf clang.tar.gz
+        else
+          tar -C clang/ -zxf llvm.tar.gz --strip-components=1
+        fi
 
     - name: Checkout Kernel
       uses: actions/checkout@v6
