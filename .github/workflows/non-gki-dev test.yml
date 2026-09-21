@@ -18,7 +18,7 @@ on:
       LLVM_VERSION:
         description: 'LLVM_VERSION'
         required: true
-        default: '22.1.8'
+        default: '23.1.1'
       USE_CUSTOM_CLANG:
         description: 'Use Custom Clang'
         required: true
